@@ -1,0 +1,78 @@
+[gd_scene load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://src/game/enemy.gd" id="1_enemy"]
+[ext_resource type="Script" path="res://src/bt/behavior_tree.gd" id="2_tree"]
+[ext_resource type="Script" path="res://src/bt/bt_selector.gd" id="3_selector"]
+[ext_resource type="Script" path="res://src/bt/bt_sequence.gd" id="4_sequence"]
+[ext_resource type="Script" path="res://src/ai/bt_find_nearest_player.gd" id="5_find_player"]
+[ext_resource type="Script" path="res://src/ai/bt_is_target_in_range.gd" id="6_in_range"]
+[ext_resource type="Script" path="res://src/ai/bt_attack_target.gd" id="7_attack"]
+[ext_resource type="Script" path="res://src/ai/bt_move_to_target.gd" id="8_move"]
+[ext_resource type="Script" path="res://src/ai/bt_target_group.gd" id="9_target_group"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_enemy"]
+radius = 12.0
+
+[node name="Enemy" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 7
+motion_mode = 1
+script = ExtResource("1_enemy")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_enemy")
+
+[node name="BehaviorTree" type="Node" parent="." node_paths=PackedStringArray("agent")]
+script = ExtResource("2_tree")
+agent = NodePath("..")
+
+[node name="Root" type="Node" parent="BehaviorTree"]
+script = ExtResource("3_selector")
+
+[node name="ChasePlayer" type="Node" parent="BehaviorTree/Root"]
+script = ExtResource("4_sequence")
+
+[node name="FindNearestPlayer" type="Node" parent="BehaviorTree/Root/ChasePlayer"]
+script = ExtResource("5_find_player")
+radius = 220.0
+
+[node name="EngageOrApproach" type="Node" parent="BehaviorTree/Root/ChasePlayer"]
+script = ExtResource("3_selector")
+
+[node name="Engage" type="Node" parent="BehaviorTree/Root/ChasePlayer/EngageOrApproach"]
+script = ExtResource("4_sequence")
+
+[node name="IsTargetInRange" type="Node" parent="BehaviorTree/Root/ChasePlayer/EngageOrApproach/Engage"]
+script = ExtResource("6_in_range")
+range = 40.0
+
+[node name="AttackTarget" type="Node" parent="BehaviorTree/Root/ChasePlayer/EngageOrApproach/Engage"]
+script = ExtResource("7_attack")
+
+[node name="MoveToTarget" type="Node" parent="BehaviorTree/Root/ChasePlayer/EngageOrApproach"]
+script = ExtResource("8_move")
+stop_distance = 34.0
+
+[node name="AssaultCore" type="Node" parent="BehaviorTree/Root"]
+script = ExtResource("4_sequence")
+
+[node name="TargetCore" type="Node" parent="BehaviorTree/Root/AssaultCore"]
+script = ExtResource("9_target_group")
+group = &"core"
+
+[node name="EngageOrApproach" type="Node" parent="BehaviorTree/Root/AssaultCore"]
+script = ExtResource("3_selector")
+
+[node name="Engage" type="Node" parent="BehaviorTree/Root/AssaultCore/EngageOrApproach"]
+script = ExtResource("4_sequence")
+
+[node name="IsTargetInRange" type="Node" parent="BehaviorTree/Root/AssaultCore/EngageOrApproach/Engage"]
+script = ExtResource("6_in_range")
+range = 70.0
+
+[node name="AttackTarget" type="Node" parent="BehaviorTree/Root/AssaultCore/EngageOrApproach/Engage"]
+script = ExtResource("7_attack")
+
+[node name="MoveToTarget" type="Node" parent="BehaviorTree/Root/AssaultCore/EngageOrApproach"]
+script = ExtResource("8_move")
+stop_distance = 60.0

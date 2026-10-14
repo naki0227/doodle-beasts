@@ -1,0 +1,78 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://src/game/main.gd" id="1_main"]
+[ext_resource type="PackedScene" path="res://src/game/core.tscn" id="2_core"]
+[ext_resource type="PackedScene" path="res://src/game/player.tscn" id="3_player"]
+[ext_resource type="PackedScene" path="res://src/game/enemy.tscn" id="4_enemy"]
+[ext_resource type="Script" path="res://src/game/wave_manager.gd" id="5_wave"]
+[ext_resource type="Script" path="res://src/game/hud.gd" id="6_hud"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_main")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_right = 1280.0
+offset_bottom = 720.0
+color = Color(0.1, 0.11, 0.14, 1)
+
+[node name="Core" parent="." instance=ExtResource("2_core")]
+position = Vector2(640, 360)
+
+[node name="Players" type="Node2D" parent="."]
+
+[node name="Player1" parent="Players" instance=ExtResource("3_player")]
+position = Vector2(580, 360)
+player_index = 1
+color = Color(0.4, 0.9, 0.5, 1)
+
+[node name="Player2" parent="Players" instance=ExtResource("3_player")]
+position = Vector2(700, 360)
+player_index = 2
+color = Color(0.95, 0.8, 0.3, 1)
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="WaveManager" type="Node" parent="." node_paths=PackedStringArray("enemy_container")]
+script = ExtResource("5_wave")
+enemy_scene = ExtResource("4_enemy")
+enemy_container = NodePath("../Enemies")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+process_mode = 3
+script = ExtResource("6_hud")
+
+[node name="Status" type="Label" parent="HUD"]
+offset_left = 16.0
+offset_top = 12.0
+offset_right = 400.0
+offset_bottom = 70.0
+theme_override_font_sizes/font_size = 20
+text = "拠点 HP"
+
+[node name="Players" type="Label" parent="HUD"]
+offset_left = 880.0
+offset_top = 12.0
+offset_right = 1264.0
+offset_bottom = 70.0
+theme_override_font_sizes/font_size = 20
+horizontal_alignment = 2
+text = "P1 / P2"
+
+[node name="Center" type="Label" parent="HUD"]
+visible = false
+offset_left = 240.0
+offset_top = 280.0
+offset_right = 1040.0
+offset_bottom = 400.0
+theme_override_font_sizes/font_size = 36
+text = "ゲームオーバー"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Hint" type="Label" parent="HUD"]
+offset_left = 16.0
+offset_top = 680.0
+offset_right = 1264.0
+offset_bottom = 710.0
+theme_override_font_sizes/font_size = 16
+text = "P1: WASD 移動 / J 攻撃 / K 修理    P2: 矢印 移動 / . 攻撃 / / 修理    ゲームパッドも可（A 攻撃 / X 修理）"
