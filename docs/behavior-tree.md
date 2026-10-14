@@ -59,6 +59,21 @@ Root (Selector)
 
 読み方: 「近くにプレイヤーがいれば、射程内なら殴る、遠ければ近づく。いなければ拠点に同じことをする」。
 
+## 味方の生き物のツリー（`src/game/beast.tscn`）
+
+```
+Root (Selector)
+└─ HuntEnemy (Sequence)
+   ├─ FindNearestEnemy  group=enemies radius=900
+   └─ EngageOrApproach (Selector)
+      ├─ Engage (Sequence)
+      │  ├─ IsTargetInRange  range=60
+      │  └─ AttackTarget
+      └─ MoveToTarget  stop_distance=50
+```
+
+敵と同じ葉ノードを、`group` を変えるだけで使い回している。生き物は `players` グループにも入るので、敵のツリーからは「追いかける相手」として見える。
+
 ## 敵本体（agent）との契約
 
 葉ノードは物理を知らない。移動や攻撃の実体は agent 側のメソッドに任せる。

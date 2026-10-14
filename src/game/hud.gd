@@ -12,6 +12,7 @@ var _wave := 0
 var _enemies := 0
 var _countdown := 0.0
 var _player_lines: Dictionary = {}
+var _beast_line := ""
 
 
 func set_core_hp(hp: float, max_hp: float) -> void:
@@ -42,8 +43,16 @@ func set_player_status(index: int, hp: float, max_hp: float, downed: bool) -> vo
 	_refresh()
 
 
+func set_beast_status(weapon: String, hp: float, max_hp: float) -> void:
+	if max_hp <= 0.0:
+		_beast_line = "ビースト  倒れた…"
+	else:
+		_beast_line = "ビースト（%s）  HP %d / %d" % [weapon, roundi(hp), roundi(max_hp)]
+	_refresh()
+
+
 func show_game_over(wave: int) -> void:
-	center_label.text = "拠点が落ちた…  到達ウェーブ %d\nR キー / Start でやり直し" % wave
+	center_label.text = "拠点が落ちた…  到達ウェーブ %d\nR キー / Start で描き直す" % wave
 	center_label.visible = true
 
 
@@ -59,10 +68,12 @@ func _refresh() -> void:
 	for index in [1, 2]:
 		if _player_lines.has(index):
 			player_lines.append(_player_lines[index])
+	if _beast_line != "":
+		player_lines.append(_beast_line)
 	players_label.text = "\n".join(player_lines)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if center_label.visible and event.is_action_pressed("restart"):
 		get_tree().paused = false
-		get_tree().reload_current_scene()
+		get_tree().change_scene_to_file("res://src/draw/draw_phase.tscn")

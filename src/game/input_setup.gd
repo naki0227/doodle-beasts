@@ -2,20 +2,21 @@ extends Node
 ## 起動時に InputMap へ操作を登録する自動読み込みノード。
 ## project.godot に手書きするより読みやすく、キー配置がここに一覧で残る。
 ##
-## P1: WASD 移動 / J 攻撃 / K 修理、またはゲームパッド0
-## P2: 矢印 移動 / . 攻撃 / / 修理、またはゲームパッド1
+## P1: WASD 移動 / J 攻撃 / K 修理 / L 完了、またはゲームパッド0
+## P2: 矢印 移動 / . 攻撃 / / 修理 / Enter 完了、またはゲームパッド1
+## 描画フェーズでは 移動=カーソル、攻撃=描く、修理=戻す として使う
 ## R: ゲームオーバー後にやり直し
 
 const PLAYERS := {
 	1: {
 		"device": 0,
 		"left": KEY_A, "right": KEY_D, "up": KEY_W, "down": KEY_S,
-		"attack": KEY_J, "repair": KEY_K,
+		"attack": KEY_J, "repair": KEY_K, "done": KEY_L,
 	},
 	2: {
 		"device": 1,
 		"left": KEY_LEFT, "right": KEY_RIGHT, "up": KEY_UP, "down": KEY_DOWN,
-		"attack": KEY_PERIOD, "repair": KEY_SLASH,
+		"attack": KEY_PERIOD, "repair": KEY_SLASH, "done": KEY_ENTER,
 	},
 }
 
@@ -37,12 +38,14 @@ func _register_player(index: int, keys: Dictionary) -> void:
 	_add_key(prefix + "down", keys["down"])
 	_add_key(prefix + "attack", keys["attack"])
 	_add_key(prefix + "repair", keys["repair"])
+	_add_key(prefix + "done", keys["done"])
 	_add_joy_axis(prefix + "left", device, JOY_AXIS_LEFT_X, -1.0)
 	_add_joy_axis(prefix + "right", device, JOY_AXIS_LEFT_X, 1.0)
 	_add_joy_axis(prefix + "up", device, JOY_AXIS_LEFT_Y, -1.0)
 	_add_joy_axis(prefix + "down", device, JOY_AXIS_LEFT_Y, 1.0)
 	_add_joy_button(prefix + "attack", device, JOY_BUTTON_A)
 	_add_joy_button(prefix + "repair", device, JOY_BUTTON_X)
+	_add_joy_button(prefix + "done", device, JOY_BUTTON_Y)
 
 
 func _ensure_action(action: String) -> void:

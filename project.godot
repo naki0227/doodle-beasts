@@ -11,12 +11,13 @@ config_version=5
 [application]
 
 config/name="Doodle Beasts"
-run/main_scene="res://src/game/main.tscn"
+run/main_scene="res://src/draw/draw_phase.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 
 [autoload]
 
 InputSetup="*res://src/game/input_setup.gd"
+GameSession="*res://src/game/game_session.gd"
 
 [debug]
 

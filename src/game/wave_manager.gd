@@ -22,6 +22,8 @@ enum Phase { IDLE, COUNTDOWN, SPAWNING, FIGHTING }
 var wave := 0
 var phase := Phase.IDLE
 var alive := 0
+## これまでに出した敵の総数。倒した数は spawned_total - alive。
+var spawned_total := 0
 
 var _countdown := 0.0
 var _to_spawn := 0
@@ -99,6 +101,7 @@ func _spawn_one() -> void:
 	enemy_container.add_child(enemy)
 	_to_spawn -= 1
 	alive += 1
+	spawned_total += 1
 	enemy_count_changed.emit(alive)
 
 

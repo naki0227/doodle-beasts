@@ -30,6 +30,8 @@ position = Vector2(700, 360)
 player_index = 2
 color = Color(0.95, 0.8, 0.3, 1)
 
+[node name="Allies" type="Node2D" parent="."]
+
 [node name="Enemies" type="Node2D" parent="."]
 
 [node name="WaveManager" type="Node" parent="." node_paths=PackedStringArray("enemy_container")]
@@ -50,10 +52,10 @@ theme_override_font_sizes/font_size = 20
 text = "拠点 HP"
 
 [node name="Players" type="Label" parent="HUD"]
-offset_left = 880.0
+offset_left = 780.0
 offset_top = 12.0
 offset_right = 1264.0
-offset_bottom = 70.0
+offset_bottom = 100.0
 theme_override_font_sizes/font_size = 20
 horizontal_alignment = 2
 text = "P1 / P2"

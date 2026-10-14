@@ -10,6 +10,8 @@ const TEST_SCRIPTS: Array[String] = [
 	"res://tests/test_ai_leaves.gd",
 	"res://tests/test_enemy_tree.gd",
 	"res://tests/test_wave_manager.gd",
+	"res://tests/test_shape_analyzer.gd",
+	"res://tests/test_beast.gd",
 ]
 
 

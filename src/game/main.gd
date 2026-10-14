@@ -5,8 +5,12 @@ extends Node2D
 @onready var wave_manager: WaveManager = $WaveManager
 @onready var hud: CanvasLayer = $HUD
 @onready var players: Node2D = $Players
+@onready var allies: Node2D = $Allies
+
+const BEAST_SCENE := preload("res://src/game/beast.tscn")
 
 var game_over := false
+var beast: Beast
 
 
 func _ready() -> void:
@@ -25,7 +29,24 @@ func _ready() -> void:
 			hud.set_player_status(player.player_index, player.hp, player.max_hp, downed))
 		hud.set_player_status(player.player_index, player.hp, player.max_hp, player.downed)
 	hud.set_core_hp(core.hp, core.max_hp)
+	_spawn_beast_from_session()
 	wave_manager.start()
+
+
+## 描画フェーズで保存した線があれば、そこから生き物を作って拠点のそばに置く。
+func _spawn_beast_from_session() -> void:
+	var session := get_node_or_null("/root/GameSession")
+	if session == null or not session.has_beast():
+		return
+	beast = BEAST_SCENE.instantiate() as Beast
+	beast.position = core.position + Vector2(0.0, -120.0)
+	allies.add_child(beast)
+	beast.build(session.body_strokes, session.weapon_strokes, session.ink_budget)
+	beast.hp_changed.connect(func(hp: float, max_hp: float) -> void:
+		hud.set_beast_status(beast.weapon_label(), hp, max_hp))
+	beast.died.connect(func(_beast: Beast) -> void:
+		hud.set_beast_status("", 0.0, 0.0))
+	hud.set_beast_status(beast.weapon_label(), beast.hp, beast.max_hp)
 
 
 func _on_core_destroyed() -> void:
