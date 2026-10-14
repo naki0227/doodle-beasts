@@ -1,7 +1,9 @@
-# Coop Core Defense
+# Doodle Beasts（らくがきビースト）
 
-2人で一つの拠点を守りながら、CPU の敵の波に立ち向かうローカル協力ゲームの骨組み。Godot 4.6 製。
-敵 AI は自前のビヘイビアツリー（BT）で動く。将来 Steam に出す前提で、ローカル協力 → Remote Play Together → 本物のオンライン同期、の順に育てる。
+みんなで分担して描いた絵が一体の生き物になり、CPU の敵の波と戦う協力ゲーム。Godot 4.6 製。Steam 向け。
+コンセプトと段階計画は `docs/design.md`、市場の調査は `docs/competitive-analysis.md` にある。
+
+いまリポジトリにあるのは**戦闘の土台**で、描画と合体はまだ無い。拠点・ローカル 2 人・ビヘイビアツリー（BT）で動く敵・無限ウェーブ・HUD が動く状態。
 
 ## 遊び方
 
@@ -23,7 +25,8 @@ src/bt/                  ビヘイビアツリー本体（ゲームに依存し�
 src/ai/                  このゲーム用の葉ノード（索敵・移動・攻撃など）
 src/game/                拠点・プレイヤー・敵・波・HUD・メインシーン
 tests/                   ヘッドレスのテストとシミュレーション
-docs/design.md           コンセプト・ロードマップ・Steam までの段取り
+docs/design.md           コンセプト・段階計画・Steam までの段取り
+docs/competitive-analysis.md  競合と市場の調査（2026-10）
 docs/behavior-tree.md    BT の使い方とノード一覧
 .github/workflows/ci.yml push ごとにインポート・テスト・起動確認
 ```

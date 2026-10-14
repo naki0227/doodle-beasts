@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="Coop Core Defense"
+config/name="Doodle Beasts"
 run/main_scene="res://src/game/main.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 
