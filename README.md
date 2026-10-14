@@ -48,12 +48,11 @@ docs/behavior-tree.md    BT の使い方とノード一覧
 # 初回 / スクリプト追加後
 godot --headless --path . --import
 
-# 単体テスト（60件）
+# 単体テスト（61件）
 godot --headless --path . -s res://tests/run_tests.gd
 
 # 30秒間ゲームを回し、見本の絵から作った生き物が敵と戦うところまで確認
 godot --headless --path . -s res://tests/simulate.gd
-```
 
 # 一連の流れを自動再生して動画にする（Xvfb と ffmpeg が必要。out/demo.mp4 ができる）
 LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 1280x720x24" godot --path . \
