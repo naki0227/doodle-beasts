@@ -12,7 +12,7 @@ offset_bottom = 720.0
 color = Color(0.1, 0.11, 0.14, 1)
 
 [node name="BodyPanel" type="Node2D" parent="."]
-position = Vector2(60, 110)
+position = Vector2(60, 128)
 script = ExtResource("2_panel")
 player_index = 1
 title = "からだ"
@@ -20,7 +20,7 @@ accent = Color(0.4, 0.9, 0.5, 1)
 use_mouse = true
 
 [node name="WeaponPanel" type="Node2D" parent="."]
-position = Vector2(700, 110)
+position = Vector2(700, 128)
 script = ExtResource("2_panel")
 player_index = 2
 title = "ぶき"
@@ -47,25 +47,25 @@ text = "のこり 60 秒"
 
 [node name="BodyInfo" type="Label" parent="HUD"]
 offset_left = 60.0
-offset_top = 50.0
+offset_top = 48.0
 offset_right = 580.0
-offset_bottom = 108.0
+offset_bottom = 124.0
 theme_override_font_sizes/font_size = 16
 text = "からだ（P1）"
 
 [node name="WeaponInfo" type="Label" parent="HUD"]
 offset_left = 700.0
-offset_top = 50.0
+offset_top = 48.0
 offset_right = 1220.0
-offset_bottom = 108.0
+offset_bottom = 124.0
 theme_override_font_sizes/font_size = 16
 text = "ぶき（P2）"
 
 [node name="Hint" type="Label" parent="HUD"]
 offset_left = 60.0
-offset_top = 660.0
+offset_top = 672.0
 offset_right = 1220.0
-offset_bottom = 710.0
+offset_bottom = 716.0
 theme_override_font_sizes/font_size = 15
 text = "P1: WASD かマウスでカーソル / J か左クリックで描く / K か右クリックで戻す / L で完了    P2: 矢印 / . で描く / / で戻す / Enter で完了    パッド: 左スティック / A で描く / X で戻す / Y で完了"
 autowrap_mode = 3

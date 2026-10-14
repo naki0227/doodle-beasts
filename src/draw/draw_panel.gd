@@ -77,6 +77,14 @@ func ink_left() -> float:
 	return maxf(0.0, ink_budget - ink_used)
 
 
+## 確定した線に、描いている途中の線を加えたもの。判定の表示に使う。
+func strokes_with_current() -> Array[PackedVector2Array]:
+	var result := strokes.duplicate()
+	if drawing and current.size() >= 2:
+		result.append(current)
+	return result
+
+
 func begin_stroke(at: Vector2) -> void:
 	if ink_left() <= 0.0:
 		return

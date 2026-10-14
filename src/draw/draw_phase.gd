@@ -46,13 +46,13 @@ func _on_done_changed(_done: bool) -> void:
 
 
 func _refresh_body() -> void:
-	var info := ShapeAnalyzer.analyze_body(body_panel.strokes, body_panel.ink_budget)
+	var info := ShapeAnalyzer.analyze_body(body_panel.strokes_with_current(), body_panel.ink_budget)
 	body_label.text = "からだ（P1）\n%s\nHP %d  こうげき %d  はやさ %d  まもり %d%%" % [
 		info["trait"], roundi(info["hp"]), roundi(info["attack"]), roundi(info["speed"]), roundi(info["defense"] * 100.0)]
 
 
 func _refresh_weapon() -> void:
-	var kind := ShapeAnalyzer.classify_weapon(weapon_panel.strokes)
+	var kind := ShapeAnalyzer.classify_weapon(weapon_panel.strokes_with_current())
 	var profile := ShapeAnalyzer.weapon_profile(kind)
 	weapon_label.text = "ぶき（P2）\nこれは… %s？\n%s" % [ShapeAnalyzer.weapon_label(kind), profile["hint"]]
 

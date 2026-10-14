@@ -55,4 +55,11 @@ godot --headless --path . -s res://tests/run_tests.gd
 godot --headless --path . -s res://tests/simulate.gd
 ```
 
+# 一連の流れを自動再生して動画にする（Xvfb と ffmpeg が必要。out/demo.mp4 ができる）
+LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 1280x720x24" godot --path . \
+  --rendering-driver opengl3 --audio-driver Dummy \
+  --write-movie out/frame.png --fixed-fps 30 -s res://tests/demo.gd
+ffmpeg -framerate 30 -i out/frame%08d.png -c:v libx264 -pix_fmt yuv420p out/demo.mp4
+```
+
 テストは外部アドオンなしで動く。`tests/test_case.gd` を継承し、`test_` で始まるメソッドを書けば `tests/run_tests.gd` の一覧に加えるだけで実行される。

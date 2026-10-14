@@ -113,6 +113,10 @@ static func classify_weapon(strokes: Array[PackedVector2Array]) -> Weapon:
 	if _looks_like_bow(strokes, diagonal):
 		return Weapon.BOW
 
+	# 片方の端にインクが集まっていて、少しでも細長ければハンマー（柄 + 頭）。
+	if elongation >= 1.4 and _ink_concentrated_at_one_end(strokes, rect) >= 0.5:
+		return Weapon.HAMMER
+
 	var closed_ink := 0.0
 	for stroke in strokes:
 		if StrokeTools.is_closed(stroke):
@@ -126,8 +130,6 @@ static func classify_weapon(strokes: Array[PackedVector2Array]) -> Weapon:
 		return Weapon.CLAWS
 
 	if elongation >= 2.0:
-		if _ink_concentrated_at_one_end(strokes, rect) >= 0.55:
-			return Weapon.HAMMER
 		return Weapon.SPEAR if elongation >= 4.0 else Weapon.SWORD
 
 	return Weapon.UNKNOWN
@@ -180,6 +182,7 @@ static func _hull_fill(strokes: Array[PackedVector2Array], rect: Rect2) -> float
 
 
 ## 長い方向に沿って見たとき、どちらかの端 35% にインクがどれだけ集まっているか（0〜1）。
+## 均一な線なら 0.35 前後。0.5 を超えると「片端に頭がある」とみなす。
 static func _ink_concentrated_at_one_end(strokes: Array[PackedVector2Array], rect: Rect2) -> float:
 	var horizontal := rect.size.x >= rect.size.y
 	var start := rect.position.x if horizontal else rect.position.y

@@ -149,6 +149,15 @@ func test_weapon_line_with_blob_is_hammer() -> void:
 	assert_eq(ShapeAnalyzer.classify_weapon(strokes), W.HAMMER)
 
 
+func test_weapon_handle_with_boxy_head_is_hammer() -> void:
+	# デモで描く形。外接矩形はあまり細長くないが、片端に頭がある。
+	var strokes: Array[PackedVector2Array] = [
+		_line(Vector2(60, 300), Vector2(330, 240)), _line(Vector2(60, 312), Vector2(330, 252)),
+		PackedVector2Array([Vector2(320, 160), Vector2(460, 130), Vector2(480, 330), Vector2(340, 360), Vector2(320, 160)]),
+		_circle(Vector2(400, 245), 50, 20)]
+	assert_eq(ShapeAnalyzer.classify_weapon(strokes), W.HAMMER)
+
+
 func test_weapon_many_short_strokes_are_claws() -> void:
 	var strokes: Array[PackedVector2Array] = []
 	for i in range(5):
