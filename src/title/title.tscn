@@ -1,0 +1,17 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/title/title.gd" id="1_title"]
+[ext_resource type="Shader" path="res://assets/shaders/paper.gdshader" id="2_paper"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_paper"]
+shader = ExtResource("2_paper")
+
+[node name="Title" type="Node2D"]
+script = ExtResource("1_title")
+
+[node name="Background" type="ColorRect" parent="."]
+z_index = -10
+material = SubResource("ShaderMaterial_paper")
+offset_right = 1280.0
+offset_bottom = 720.0
+color = Color(1, 1, 1, 1)

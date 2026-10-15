@@ -11,7 +11,8 @@ config_version=5
 [application]
 
 config/name="Doodle Beasts"
-run/main_scene="res://src/draw/draw_phase.tscn"
+config/description="みんなで描いた生き物が戦う協力ゲーム"
+run/main_scene="res://src/title/title.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 
 [autoload]
@@ -30,6 +31,10 @@ window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="keep"
+
+[gui]
+
+theme/custom_font="res://assets/fonts/ZenMaruGothic-Bold.ttf"
 
 [layer_names]
 

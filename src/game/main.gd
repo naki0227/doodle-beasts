@@ -1,5 +1,5 @@
 extends Node2D
-## ゲーム1回分の配線。拠点・プレイヤー・波・HUD をつなぎ、ゲームオーバーとやり直しを扱う。
+## ゲーム 1 回分の配線。お城・鉛筆たち・波・HUD をつなぎ、ゲームオーバーとやり直しを扱う。
 
 @onready var core: Core = $Core
 @onready var wave_manager: WaveManager = $WaveManager
@@ -14,6 +14,8 @@ var beast: Beast
 
 
 func _ready() -> void:
+	Fx.hitstop_enabled = true
+	Engine.time_scale = 1.0
 	core.hp_changed.connect(hud.set_core_hp)
 	core.destroyed.connect(_on_core_destroyed)
 	wave_manager.wave_started.connect(hud.set_wave)
@@ -33,13 +35,13 @@ func _ready() -> void:
 	wave_manager.start()
 
 
-## 描画フェーズで保存した線があれば、そこから生き物を作って拠点のそばに置く。
+## 描画フェーズで保存した線があれば、そこから生き物を作ってお城のそばに落とす。
 func _spawn_beast_from_session() -> void:
 	var session := get_node_or_null("/root/GameSession")
 	if session == null or not session.has_beast():
 		return
 	beast = BEAST_SCENE.instantiate() as Beast
-	beast.position = core.position + Vector2(0.0, -120.0)
+	beast.position = core.position + Vector2(210.0, 10.0)
 	allies.add_child(beast)
 	beast.build(session.body_strokes, session.weapon_strokes, session.ink_budget)
 	beast.hp_changed.connect(func(hp: float, max_hp: float) -> void:
@@ -47,6 +49,7 @@ func _spawn_beast_from_session() -> void:
 	beast.died.connect(func(_beast: Beast) -> void:
 		hud.set_beast_status("", 0.0, 0.0))
 	hud.set_beast_status(beast.weapon_label(), beast.hp, beast.max_hp)
+	beast.play_entrance()
 
 
 func _on_core_destroyed() -> void:
@@ -55,9 +58,11 @@ func _on_core_destroyed() -> void:
 	game_over = true
 	wave_manager.stop()
 	hud.show_game_over(wave_manager.wave)
+	await get_tree().create_timer(0.6).timeout
+	Engine.time_scale = 1.0
 	get_tree().paused = true
 
 
-func _draw() -> void:
-	var arena := wave_manager.arena
-	draw_rect(arena.grow(-2.0), Color(0.3, 0.35, 0.45), false, 3.0)
+func _exit_tree() -> void:
+	Fx.hitstop_enabled = false
+	Engine.time_scale = 1.0

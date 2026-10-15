@@ -33,6 +33,9 @@ jobs:
       - name: Import project
         run: ~/godot/godot --headless --path . --import
 
+      - name: All scripts and scenes load
+        run: ~/godot/godot --headless --path . -s res://tests/check_scripts.gd
+
       - name: Unit tests
         run: ~/godot/godot --headless --path . -s res://tests/run_tests.gd
 

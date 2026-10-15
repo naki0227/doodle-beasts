@@ -33,6 +33,16 @@ func test_build_sets_stats_and_shape() -> void:
 	assert_true(absf(maxf(rect.size.x, rect.size.y) - beast.target_size) < 2.0, "長い辺が target_size に収まる")
 
 
+func test_reach_grows_with_body_and_weapon() -> void:
+	var beast := (load("res://src/game/beast.tscn") as PackedScene).instantiate() as Beast
+	add_to_scene(beast)
+	beast.build(_body(), _weapon(), 3000.0)
+	var in_range := beast.get_node("BehaviorTree/Root/HuntEnemy/EngageOrApproach/Engage/IsTargetInRange") as BTIsTargetInRange
+	var move := beast.get_node("BehaviorTree/Root/HuntEnemy/EngageOrApproach/MoveToTarget") as BTMoveToTarget
+	assert_true(in_range.range > beast.target_size * 0.5, "体の半径より遠くまで届く")
+	assert_true(move.stop_distance < in_range.range, "止まる位置は届く範囲の内側")
+
+
 func test_defense_reduces_damage() -> void:
 	var beast := (load("res://src/game/beast.tscn") as PackedScene).instantiate() as Beast
 	add_to_scene(beast)
