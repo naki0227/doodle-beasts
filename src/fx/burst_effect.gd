@@ -1,7 +1,7 @@
 extends Node2D
 ## 当たりや出現のときの、放射状の線と飛び散る粒。自分で消える。
 
-var color: Color = DoodleStyle.INK
+var color: Color = DoodleStyle.FROST
 var size: float = 1.0
 var crumb_count: int = 10
 var lifetime: float = 0.45
@@ -49,10 +49,10 @@ func _draw() -> void:
 	var inner := 14.0 * size * ease_out
 	var outer := (20.0 + 30.0 * ease_out) * size
 	for ray in _rays:
-		draw_line(ray * inner, ray * outer, Color(DoodleStyle.INK, alpha), 3.0, true)
+		draw_line(ray * inner, ray * outer, Color(DoodleStyle.GOLD_LIGHT, alpha * 0.9), 2.0)
 	if k < 0.35:
-		draw_circle(Vector2.ZERO, 16.0 * size * (1.0 - k * 2.0), Color(1, 1, 1, 0.8 * (1.0 - k / 0.35)))
+		draw_circle(Vector2.ZERO, 16.0 * size * (1.0 - k * 2.0), Color(DoodleStyle.CREAM, 0.7 * (1.0 - k / 0.35)))
 	for crumb in _crumbs:
 		var dir: Vector2 = Vector2.RIGHT.rotated(crumb["angle"]) * crumb["length"]
 		var p: Vector2 = crumb["position"]
-		draw_line(p - dir, p + dir, Color(color, alpha), 3.5, true)
+		draw_line(p - dir, p + dir, Color(color, alpha), 3.0)

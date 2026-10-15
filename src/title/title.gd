@@ -1,33 +1,30 @@
 extends Node2D
-## タイトル画面。ロゴ・見本のビースト・はじめかた。ボタンかクリックで描画フェーズへ。
+## タイトル画面。夕暮れのはかり野の遠景、崖の上の旅人、草地に立つ見本の獣、題字、はじめかた。
+## ボタンかクリックで描画フェーズへ。
 
 const NEXT_SCENE := "res://src/draw/draw_phase.tscn"
 const BEAST_SCENE := preload("res://src/game/beast.tscn")
+## 仮の題字。設定シート「はかり野 — よみがえりの大地」から取っている。製品名が決まったらここを変える。
+const TITLE := "はかり野"
+const SUBTITLE := "よみがえりの大地"
+const TAGLINE := "描いたかたちが、獣になってよみがえる"
 
 var _t := 0.0
 var _leaving := false
 var _fade := 1.0
-var _decor: Node2D
 var _mascot: Beast
 
-
-class Decor:
-	extends Node2D
-	var title: Node
-
-	func _draw() -> void:
-		title.draw_decor(self)
+@onready var _text: Node2D = $Text/Canvas
+@onready var _foreground: Node2D = $Foreground
 
 
 func _ready() -> void:
 	Engine.time_scale = 1.0
-	_decor = Decor.new()
-	_decor.title = self
-	_decor.material = DoodleStyle.doodle_material(1.2, 1.0)
-	add_child(_decor)
+	_text.set("title_screen", self)
+	_foreground.set("title_screen", self)
 	_mascot = BEAST_SCENE.instantiate() as Beast
-	_mascot.target_size = 230.0
-	_mascot.position = Vector2(930.0, 420.0)
+	_mascot.target_size = 170.0
+	_mascot.position = Vector2(930.0, 560.0)
 	add_child(_mascot)
 	_mascot.build(SampleDoodles.body(), SampleDoodles.weapon(), 3000.0)
 	var tree_node := _mascot.get_node("BehaviorTree") as BehaviorTree
@@ -36,7 +33,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
-	_fade = maxf(0.0, _fade - delta * 2.0) if not _leaving else minf(1.0, _fade + delta * 4.0)
+	_fade = maxf(0.0, _fade - delta * 1.5) if not _leaving else minf(1.0, _fade + delta * 3.0)
 	if not _leaving:
 		for action in ["ui_accept", "p1_done", "p2_done", "p1_attack", "p2_attack"]:
 			if Input.is_action_just_pressed(action):
@@ -45,9 +42,9 @@ func _process(delta: float) -> void:
 	if _mascot != null and is_instance_valid(_mascot):
 		var weapon := _mascot.get_node_or_null("Visual/Weapon") as Node2D
 		if weapon != null:
-			weapon.rotation = sin(_t * 2.2) * 0.25
-	queue_redraw()
-	_decor.queue_redraw()
+			weapon.rotation = sin(_t * 1.6) * 0.18
+	_text.queue_redraw()
+	_foreground.queue_redraw()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -59,71 +56,50 @@ func start() -> void:
 	if _leaving:
 		return
 	_leaving = true
-	await get_tree().create_timer(0.3).timeout
+	await get_tree().create_timer(0.4).timeout
 	get_tree().change_scene_to_file(NEXT_SCENE)
 
 
-func draw_decor(c: Node2D) -> void:
-	# 余白のらくがき
-	for i in range(5):
-		var p := Vector2(150.0 + i * 150.0, 640.0 + sin(i * 1.7) * 18.0)
-		_star(c, p, 14.0 + (i % 2) * 6.0, [DoodleStyle.P2, DoodleStyle.CASTLE_FLAG, DoodleStyle.P1, DoodleStyle.ERASER_PINK, DoodleStyle.CASTLE_ROOF][i])
-	var spiral := PackedVector2Array()
-	for i in range(60):
-		var a := i * 0.35
-		spiral.append(Vector2(1180.0, 110.0) + Vector2(cos(a), sin(a)) * (2.0 + i * 0.6))
-	c.draw_polyline(spiral, DoodleStyle.INK_SOFT, 3.0, true)
-	# 地面の線
-	var ground := PackedVector2Array()
-	for i in range(30):
-		ground.append(Vector2(760.0 + i * 13.0, 560.0 + sin(i * 1.3) * 3.0))
-	c.draw_polyline(ground, DoodleStyle.INK, 3.0, true)
+## 世界の中の手前の景色（ピクセル化される）。崖と、遠くを見る旅人。
+func draw_foreground(c: Node2D) -> void:
+	var ledge := PackedVector2Array([Vector2(-40, 720), Vector2(-40, 520), Vector2(60, 500), Vector2(170, 512), Vector2(260, 530), Vector2(330, 560), Vector2(380, 720)])
+	DoodleStyle.draw_shape(c, ledge, DoodleStyle.STONE_DARK.darkened(0.25), 0.0)
+	c.draw_colored_polygon(PackedVector2Array([Vector2(-40, 520), Vector2(60, 500), Vector2(170, 512), Vector2(260, 530), Vector2(250, 540), Vector2(160, 524), Vector2(60, 512), Vector2(-40, 532)]), DoodleStyle.MOSS)
+	for i in range(14):
+		var x := -30.0 + i * 21.0
+		var y := 506.0 + absf(x - 60.0) * 0.08
+		c.draw_line(Vector2(x, y), Vector2(x + 3.0, y - 10.0 - (i % 3) * 4.0), DoodleStyle.MOSS_DARK, 2.0)
+	# 石碑
+	c.draw_colored_polygon(PackedVector2Array([Vector2(36, 506), Vector2(70, 504), Vector2(66, 420), Vector2(52, 410), Vector2(38, 418)]), DoodleStyle.STONE_DARK)
+	var rune := Color(DoodleStyle.GOLD_LIGHT, 0.6 + 0.3 * sin(_t * 1.4))
+	c.draw_line(Vector2(52, 424), Vector2(52, 494), rune, 2.0)
+	c.draw_arc(Vector2(52, 452), 8.0, 0.0, TAU, 14, rune, 1.5)
+	# 旅人の後ろ姿（シルエット）
+	var p := Vector2(170.0, 512.0)
+	var sil := Color("16181e")
+	c.draw_colored_polygon(PackedVector2Array([p + Vector2(-10, 0), p + Vector2(10, 0), p + Vector2(8, -36), p + Vector2(-8, -36)]), sil)
+	c.draw_colored_polygon(PackedVector2Array([p + Vector2(-15, -40), p + Vector2(-6, -42), p + Vector2(-5, -18), p + Vector2(-14, -16)]), sil)
+	c.draw_circle(p + Vector2(0, -42), 6.0, sil)
+	c.draw_colored_polygon(DoodleStyle.ellipse(p + Vector2(0, -46), Vector2(16, 3.5), 14), sil)
+	c.draw_colored_polygon(PackedVector2Array([p + Vector2(-6, -47), p + Vector2(6, -47), p + Vector2(4, -58), p + Vector2(-4, -58)]), sil)
+	c.draw_line(p + Vector2(12, 0), p + Vector2(15, -66), sil, 2.5)
+	c.draw_colored_polygon(PackedVector2Array([p + Vector2(-8, -38), p + Vector2(-20 + sin(_t * 2.0) * 3.0, -30), p + Vector2(-8, -30)]), Color("2b3a55"))
 
 
-func _star(c: Node2D, center: Vector2, radius: float, color: Color) -> void:
-	var points := PackedVector2Array()
-	for i in range(10):
-		var r := radius if i % 2 == 0 else radius * 0.45
-		var a := -PI / 2.0 + TAU * i / 10.0 + _t * 0.3
-		points.append(center + Vector2(cos(a), sin(a)) * r)
-	DoodleStyle.draw_shape(c, points, color, 2.5)
-
-
-func _draw() -> void:
-	# ロゴ
-	var colors := [DoodleStyle.P1, DoodleStyle.P2, DoodleStyle.CASTLE_FLAG, DoodleStyle.CASTLE_ROOF]
-	var line1 := "らくがき"
-	var line2 := "ビースト"
-	_draw_logo_line(line1, Vector2(150.0, 230.0), 96, colors, 0.0)
-	_draw_logo_line(line2, Vector2(200.0, 360.0), 120, colors, 2.0)
-	DoodleStyle.draw_text(self, DoodleStyle.HAND_FONT, Vector2(206.0, 420.0), "DOODLE  BEASTS", 34, DoodleStyle.INK, HORIZONTAL_ALIGNMENT_LEFT, -1, 8)
-	DoodleStyle.draw_text(self, DoodleStyle.UI_FONT, Vector2(150.0, 480.0), "みんなで描いた いきものが、消しゴム軍団と たたかう！", 22, DoodleStyle.INK, HORIZONTAL_ALIGNMENT_LEFT, -1, 6)
-	var blink := 0.55 + 0.45 * sin(_t * 4.0)
-	_draw_button_hint(Vector2(150.0, 560.0), blink)
-	DoodleStyle.draw_text(self, DoodleStyle.UI_FONT, Vector2(0.0, 704.0), "1〜2人 きょうりょく ・ ゲームパッド / キーボード / マウス ・ Remote Play Together", 15, Color(DoodleStyle.INK, 0.6), HORIZONTAL_ALIGNMENT_CENTER, 1280.0)
+## 文字（ピクセル化されない層）。
+func draw_text_layer(c: Node2D) -> void:
+	var x := 470.0
+	DoodleStyle.draw_text(c, DoodleStyle.HAND_FONT, Vector2(x + 4.0, 168.0), TITLE, 104, Color(0, 0, 0, 0.45))
+	DoodleStyle.draw_text(c, DoodleStyle.HAND_FONT, Vector2(x, 162.0), TITLE, 104, DoodleStyle.CREAM, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, DoodleStyle.NIGHT)
+	var w := DoodleStyle.HAND_FONT.get_string_size(TITLE, HORIZONTAL_ALIGNMENT_LEFT, -1, 104).x
+	c.draw_line(Vector2(x, 186.0), Vector2(x + w, 186.0), Color(DoodleStyle.GOLD, 0.9), 1.5)
+	DoodleStyle.draw_d20(c, Vector2(x + w + 34.0, 120.0 + sin(_t * 1.6) * 4.0), 18.0)
+	DoodleStyle.draw_text(c, DoodleStyle.HAND_FONT, Vector2(x, 226.0), "— " + SUBTITLE, 30, DoodleStyle.GOLD_LIGHT, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, DoodleStyle.NIGHT)
+	DoodleStyle.draw_text(c, DoodleStyle.UI_FONT, Vector2(x, 264.0), TAGLINE, 20, DoodleStyle.CREAM, HORIZONTAL_ALIGNMENT_LEFT, -1, 6, DoodleStyle.NIGHT)
+	var blink := 0.55 + 0.45 * sin(_t * 3.0)
+	var rect := Rect2(490.0, 620.0, 300.0, 46.0)
+	DoodleStyle.draw_panel(c, rect, 0.6 + 0.4 * blink)
+	DoodleStyle.draw_text(c, DoodleStyle.HAND_FONT, rect.position + Vector2(0.0, 31.0), "A・Enter・クリック で はじめる", 18, Color(DoodleStyle.CREAM, 0.6 + 0.4 * blink), HORIZONTAL_ALIGNMENT_CENTER, rect.size.x)
+	DoodleStyle.draw_text(c, DoodleStyle.UI_FONT, Vector2(0.0, 704.0), "1〜2人で協力　ゲームパッド・キーボード・マウス　Remote Play Together 対応", 14, Color(DoodleStyle.CREAM, 0.6), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 4)
 	if _fade > 0.0:
-		draw_rect(Rect2(0.0, 0.0, 1280.0, 720.0), Color(1.0, 1.0, 1.0, _fade))
-
-
-func _draw_logo_line(text: String, origin: Vector2, size: int, colors: Array, phase: float) -> void:
-	var x := origin.x
-	for i in range(text.length()):
-		var ch := text.substr(i, 1)
-		var bob := sin(_t * 3.0 + i * 0.9 + phase) * 6.0
-		var tilt := sin(i * 2.3 + phase) * 0.12
-		var w := DoodleStyle.HAND_FONT.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-		draw_set_transform(Vector2(x + w * 0.5, origin.y + bob), tilt, Vector2.ONE)
-		var p := Vector2(-w * 0.5, 0.0)
-		draw_string_outline(DoodleStyle.HAND_FONT, p + Vector2(4.0, 7.0), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 22, Color("b9ab92"))
-		draw_string_outline(DoodleStyle.HAND_FONT, p, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 22, DoodleStyle.PAPER)
-		draw_string_outline(DoodleStyle.HAND_FONT, p, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 8, DoodleStyle.INK)
-		draw_string(DoodleStyle.HAND_FONT, p, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, size, colors[(i + int(phase)) % colors.size()])
-		x += w + 4.0
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-
-
-func _draw_button_hint(origin: Vector2, alpha: float) -> void:
-	var rect := Rect2(origin, Vector2(470.0, 58.0))
-	draw_colored_polygon(DoodleStyle.rounded_rect(Rect2(rect.position + Vector2(4.0, 6.0), rect.size), 29.0), DoodleStyle.SHADOW)
-	DoodleStyle.draw_shape(self, DoodleStyle.rounded_rect(rect, 29.0), Color(DoodleStyle.ACCENT_RED, 0.75 + 0.25 * alpha), 3.0)
-	DoodleStyle.draw_text(self, DoodleStyle.HAND_FONT, rect.position + Vector2(0.0, 40.0), "A ボタン / Enter / クリックで はじめる", 24, DoodleStyle.PAPER, HORIZONTAL_ALIGNMENT_CENTER, rect.size.x)
+		c.draw_rect(Rect2(0.0, 0.0, 1280.0, 720.0), Color(DoodleStyle.NIGHT, _fade))

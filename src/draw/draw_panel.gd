@@ -1,17 +1,19 @@
 class_name DrawPanel
 extends Node2D
-## 一人ぶんのキャンバス（スケッチブックの 1 ページ）。パッド（スティックでカーソル、ボタンで描く）か、マウスで描く。
+## 一人ぶんのキャンバス（記録帳の 1 ページ）。パッド（スティックでカーソル、ボタンで描く）か、マウスで描く。
 ## 線のデータは strokes に溜まり、解析と立体化はこのデータだけを見る。
 
 signal changed
 signal done_changed(done: bool)
 
 @export_range(1, 2) var player_index: int = 1
-@export var panel_size: Vector2 = Vector2(480.0, 470.0)
+@export var panel_size: Vector2 = Vector2(470.0, 440.0)
 @export var ink_budget: float = 3000.0
 @export var title: String = "からだ"
 @export var guide: String = "ここに からだ を描こう"
 @export var accent: Color = DoodleStyle.P1
+## 合体の演出で、インクの線を金に変える割合（0〜1）。
+var gild: float = 0.0
 ## true なら、このパネルはマウスでも描ける。
 @export var use_mouse: bool = false
 
@@ -27,33 +29,45 @@ var _mouse_down := false
 var _t := 0.0
 var _stamp := 0.0
 var _ink: InkLayer
+var _paper: ColorRect
 
 
-## 線だけを描く子ノード。線にだけ「ふるえ」のシェーダーをかけるために分けている。
+## 線だけを描く子ノード。紙（_paper）より手前、飾りや文字と同じ高さに線を描く。
 class InkLayer:
 	extends Node2D
 	var panel: DrawPanel
 
 	func _draw() -> void:
+		var color := DoodleStyle.SEPIA.lerp(DoodleStyle.GOLD_LIGHT, panel.gild)
 		for stroke in panel.strokes:
-			_stroke(stroke)
+			_stroke(stroke, color)
 		if panel.drawing:
-			_stroke(panel.current)
+			_stroke(panel.current, color)
 
-	func _stroke(stroke: PackedVector2Array) -> void:
+	func _stroke(stroke: PackedVector2Array, color: Color) -> void:
 		if stroke.size() >= 2:
-			draw_polyline(stroke, DoodleStyle.INK, 5.0, true)
-			draw_circle(stroke[0], 2.5, DoodleStyle.INK)
-			draw_circle(stroke[stroke.size() - 1], 2.5, DoodleStyle.INK)
+			if panel.gild > 0.0:
+				draw_polyline(stroke, Color(DoodleStyle.GOLD, 0.35 * panel.gild), 14.0, true)
+			draw_polyline(stroke, color, 4.0, true)
+			draw_circle(stroke[0], 2.0, color)
+			draw_circle(stroke[stroke.size() - 1], 2.0, color)
 		elif stroke.size() == 1:
-			draw_circle(stroke[0], 2.5, DoodleStyle.INK)
+			draw_circle(stroke[0], 2.0, color)
 
 
 func _ready() -> void:
 	cursor = panel_size * 0.5
+	_paper = ColorRect.new()
+	_paper.size = panel_size
+	_paper.show_behind_parent = true
+	_paper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var paper_material := ShaderMaterial.new()
+	paper_material.shader = preload("res://assets/shaders/parchment.gdshader")
+	paper_material.set_shader_parameter("size", panel_size)
+	_paper.material = paper_material
+	add_child(_paper)
 	_ink = InkLayer.new()
 	_ink.panel = self
-	_ink.material = DoodleStyle.doodle_material(0.7, 0.0)
 	add_child(_ink)
 	queue_redraw()
 
@@ -190,68 +204,76 @@ func set_done(value: bool) -> void:
 
 
 func _draw() -> void:
-	var rect := Rect2(Vector2.ZERO, panel_size)
-	# 影と紙
-	draw_colored_polygon(DoodleStyle.rounded_rect(Rect2(rect.position + Vector2(8.0, 12.0), rect.size), 8.0), Color(0, 0, 0, 0.28))
-	draw_colored_polygon(DoodleStyle.rounded_rect(Rect2(rect.position + Vector2(3.0, 4.0), rect.size), 8.0), DoodleStyle.PAPER_SHADE)
-	draw_colored_polygon(DoodleStyle.rounded_rect(rect, 8.0), DoodleStyle.PAPER)
-	# 方眼の点
-	for x in range(24, int(panel_size.x), 24):
-		for y in range(72, int(panel_size.y), 24):
-			draw_circle(Vector2(x, y), 1.1, Color(0.6, 0.7, 0.85, 0.45))
-	# リング
-	for x in range(30, int(panel_size.x) - 10, 38):
-		draw_circle(Vector2(x, 2.0), 7.0, Color(0, 0, 0, 0.35))
-		draw_arc(Vector2(x, -4.0), 8.0, PI * 0.1, PI * 1.9, 14, Color("9aa0a8"), 3.5, true)
-	# 見出し
-	DoodleStyle.draw_text(self, DoodleStyle.HAND_FONT, Vector2(22.0, 52.0), title, 34, DoodleStyle.INK)
-	var title_width := DoodleStyle.HAND_FONT.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 34).x
-	draw_line(Vector2(20.0, 60.0), Vector2(30.0 + title_width, 58.0), accent, 6.0, true)
-	DoodleStyle.draw_text(self, DoodleStyle.UI_FONT, Vector2(panel_size.x - 140.0, 48.0), "P%d がかく" % player_index, 16, accent.darkened(0.2), HORIZONTAL_ALIGNMENT_RIGHT, 120.0)
+	# 紙そのものは _paper（羊皮紙のシェーダー）が描く。ここでは飾りと文字とカーソル。
+	_draw_sprigs()
+	DoodleStyle.draw_text(self, DoodleStyle.HAND_FONT, Vector2(24.0, 50.0), title, 30, DoodleStyle.SEPIA)
+	var title_width := DoodleStyle.HAND_FONT.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
+	draw_line(Vector2(24.0, 60.0), Vector2(34.0 + title_width, 60.0), Color(accent.darkened(0.2), 0.9), 2.0)
+	draw_colored_polygon(PackedVector2Array([Vector2(40.0 + title_width, 56.0), Vector2(44.0 + title_width, 60.0), Vector2(40.0 + title_width, 64.0), Vector2(36.0 + title_width, 60.0)]), accent.darkened(0.2))
+	DoodleStyle.draw_text(self, DoodleStyle.UI_FONT, Vector2(panel_size.x - 160.0, 48.0), "旅人 %d が描く" % player_index, 15, accent.darkened(0.35), HORIZONTAL_ALIGNMENT_RIGHT, 136.0)
 	if strokes.is_empty() and not drawing:
-		var pulse := 0.35 + 0.15 * sin(_t * 3.0)
-		DoodleStyle.draw_text(self, DoodleStyle.HAND_FONT, Vector2(0.0, panel_size.y * 0.55), guide, 26, Color(DoodleStyle.INK, pulse), HORIZONTAL_ALIGNMENT_CENTER, panel_size.x)
-	# 鉛筆のインク残量（短くなっていく）
-	_draw_ink_pencil(Vector2(10.0, panel_size.y + 30.0), panel_size.x - 20.0)
+		var pulse := 0.3 + 0.15 * sin(_t * 2.5)
+		DoodleStyle.draw_text(self, DoodleStyle.HAND_FONT, Vector2(0.0, panel_size.y * 0.55), guide, 24, Color(DoodleStyle.SEPIA, pulse), HORIZONTAL_ALIGNMENT_CENTER, panel_size.x)
+	_draw_inkwell(Vector2(26.0, panel_size.y + 34.0), panel_size.x - 52.0)
 	if not (locked or done):
 		_draw_cursor()
 	if done:
-		_draw_stamp()
+		_draw_seal()
 
 
-func _draw_ink_pencil(origin: Vector2, max_length: float) -> void:
+## ページの隅の、かすれた植物のスケッチ（記録帳らしさ）。
+func _draw_sprigs() -> void:
+	var faint := Color(DoodleStyle.SEPIA, 0.18)
+	for corner in [Vector2(panel_size.x - 60.0, panel_size.y - 30.0), Vector2(40.0, panel_size.y - 26.0)]:
+		var base: Vector2 = corner
+		draw_line(base, base + Vector2(10.0, -70.0), faint, 1.5)
+		for k in range(5):
+			var p := base + Vector2(2.0 * k, -14.0 * k - 8.0)
+			draw_colored_polygon(DoodleStyle.ellipse(p + Vector2(8.0, -2.0), Vector2(7.0, 3.0), 8), faint)
+			draw_colored_polygon(DoodleStyle.ellipse(p + Vector2(-6.0, -4.0), Vector2(6.0, 2.5), 8), faint)
+
+
+## インク残量。ページの下に、細いインクの帯と小さなインク壺。
+func _draw_inkwell(origin: Vector2, length: float) -> void:
 	var ratio := clampf(ink_left() / ink_budget, 0.0, 1.0) if ink_budget > 0.0 else 0.0
-	var length := maxf(40.0, max_length * ratio)
-	var h := 16.0
-	var tip := origin + Vector2(length, 0.0)
-	draw_colored_polygon(PackedVector2Array([origin + Vector2(4, h * 0.5 + 4), tip + Vector2(4, 4), tip + Vector2(-26, h * 0.5 + 4)]), Color(0, 0, 0, 0.25))
-	DoodleStyle.draw_shape(self, PackedVector2Array([origin + Vector2(0, -h * 0.5), tip + Vector2(-28, -h * 0.5), tip + Vector2(-28, h * 0.5), origin + Vector2(0, h * 0.5)]), accent, 2.0)
-	DoodleStyle.draw_shape(self, PackedVector2Array([tip + Vector2(-28, -h * 0.5), tip + Vector2(-8, -3), tip + Vector2(-8, 3), tip + Vector2(-28, h * 0.5)]), Color("f1d3a0"), 2.0)
-	DoodleStyle.draw_shape(self, PackedVector2Array([tip + Vector2(-8, -3), tip, tip + Vector2(-8, 3)]), DoodleStyle.INK, 1.5)
-	DoodleStyle.draw_shape(self, DoodleStyle.rounded_rect(Rect2(origin + Vector2(-14, -h * 0.5), Vector2(14, h)), 4.0), DoodleStyle.ERASER_PINK, 2.0)
-	DoodleStyle.draw_text(self, DoodleStyle.UI_FONT, origin + Vector2(0.0, 32.0), "インク のこり %d%%" % roundi(ratio * 100.0), 14, DoodleStyle.PAPER, HORIZONTAL_ALIGNMENT_LEFT, -1, 4, Color(0, 0, 0, 0.5))
+	DoodleStyle.draw_shape(self, PackedVector2Array([origin + Vector2(-12, 8), origin + Vector2(-12, -6), origin + Vector2(-8, -10), origin + Vector2(8, -10), origin + Vector2(12, -6), origin + Vector2(12, 8)]), Color("2d3240"), 1.5, DoodleStyle.INK)
+	draw_rect(Rect2(origin + Vector2(-9, 7 - 14.0 * ratio), Vector2(18, 14.0 * ratio)), Color("141820"))
+	var bar := Rect2(origin + Vector2(22.0, -3.0), Vector2(length - 22.0, 6.0))
+	draw_rect(bar, Color(DoodleStyle.NIGHT, 0.6))
+	draw_rect(Rect2(bar.position, Vector2(bar.size.x * ratio, bar.size.y)), Color("141820"))
+	draw_rect(bar, Color(DoodleStyle.GOLD, 0.6), false, 1.0)
+	DoodleStyle.draw_text(self, DoodleStyle.UI_FONT, origin + Vector2(22.0, 26.0), "インク  のこり %d%%" % roundi(ratio * 100.0), 13, DoodleStyle.CREAM)
 
 
+## 羽根ペンのカーソル。ペン先が cursor の位置。
 func _draw_cursor() -> void:
-	var tilt := -0.5 if drawing else -0.75
-	var lift := 0.0 if drawing else -6.0
-	draw_set_transform(cursor + Vector2(0.0, lift), tilt, Vector2.ONE)
-	draw_colored_polygon(PackedVector2Array([Vector2(6, 4), Vector2(14, -6), Vector2(14, -70), Vector2(-2, -70), Vector2(-2, -6)]), Color(0, 0, 0, 0.18))
-	DoodleStyle.draw_shape(self, PackedVector2Array([Vector2(0, 0), Vector2(-4, -9), Vector2(4, -9)]), DoodleStyle.INK, 1.5)
-	DoodleStyle.draw_shape(self, PackedVector2Array([Vector2(-4, -9), Vector2(4, -9), Vector2(8, -22), Vector2(-8, -22)]), Color("f1d3a0"), 2.0)
-	DoodleStyle.draw_shape(self, PackedVector2Array([Vector2(-8, -22), Vector2(8, -22), Vector2(8, -64), Vector2(-8, -64)]), accent, 2.0)
-	DoodleStyle.draw_shape(self, DoodleStyle.rounded_rect(Rect2(-8, -74, 16, 10), 3.0), DoodleStyle.ERASER_PINK, 2.0)
+	var lift := 0.0 if drawing else -5.0
+	draw_set_transform(cursor + Vector2(0.0, lift), 0.6, Vector2.ONE)
+	draw_colored_polygon(PackedVector2Array([Vector2(4, 4), Vector2(10, -70), Vector2(20, -60), Vector2(8, 0)]), Color(0, 0, 0, 0.15))
+	DoodleStyle.draw_shape(self, PackedVector2Array([Vector2(0, 0), Vector2(-2, -10), Vector2(2, -10)]), DoodleStyle.INK, 1.0)
+	draw_line(Vector2(0, -10), Vector2(0, -78), Color("8a7356"), 2.0)
+	var vane := PackedVector2Array([Vector2(0, -18), Vector2(-9, -34), Vector2(-12, -58), Vector2(-4, -80), Vector2(0, -78), Vector2(5, -60), Vector2(6, -36)])
+	DoodleStyle.draw_shape(self, vane, accent.lerp(DoodleStyle.CREAM, 0.35), 1.2, DoodleStyle.SEPIA)
+	for k in range(5):
+		var y := -30.0 - k * 9.0
+		draw_line(Vector2(0, y), Vector2(-8, y - 6), Color(DoodleStyle.SEPIA, 0.5), 1.0)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if not drawing:
-		draw_arc(cursor, 6.0 + sin(_t * 6.0), 0.0, TAU, 16, Color(accent, 0.8), 2.0, true)
+		draw_arc(cursor, 6.0 + sin(_t * 6.0), 0.0, TAU, 16, Color(accent.darkened(0.3), 0.8), 1.5, true)
 
 
-func _draw_stamp() -> void:
-	var pop := 1.0 + 1.2 * (1.0 - _stamp) * (1.0 - _stamp)
-	var center := Vector2(panel_size.x - 90.0, panel_size.y - 90.0)
-	draw_set_transform(center, -0.25, Vector2(pop, pop))
-	var red := Color(DoodleStyle.ACCENT_RED, 0.85 * _stamp)
-	draw_arc(Vector2.ZERO, 58.0, 0.0, TAU, 40, red, 6.0, true)
-	draw_arc(Vector2.ZERO, 50.0, 0.0, TAU, 40, red, 2.0, true)
-	DoodleStyle.draw_text(self, DoodleStyle.HAND_FONT, Vector2(-60.0, 16.0), "OK!", 44, red, HORIZONTAL_ALIGNMENT_CENTER, 120.0)
+## 完成の封蝋。
+func _draw_seal() -> void:
+	var pop := 1.0 + 1.0 * (1.0 - _stamp) * (1.0 - _stamp)
+	var center := Vector2(panel_size.x - 70.0, panel_size.y - 70.0)
+	draw_set_transform(center, -0.2, Vector2(pop, pop))
+	var a := _stamp
+	var wax := PackedVector2Array()
+	for i in range(18):
+		var ang := TAU * i / 18.0
+		var r := 34.0 + (4.0 if i % 2 == 0 else 0.0)
+		wax.append(Vector2(cos(ang), sin(ang)) * r)
+	draw_colored_polygon(wax, Color(DoodleStyle.BLOOD, 0.95 * a))
+	draw_arc(Vector2.ZERO, 24.0, 0.0, TAU, 24, Color(DoodleStyle.BLOOD.lightened(0.25), a), 2.0, true)
+	DoodleStyle.draw_d20(self, Vector2.ZERO, 12.0, Color(DoodleStyle.GOLD, a), Color(DoodleStyle.BLOOD.darkened(0.3), a))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

@@ -1,5 +1,5 @@
 extends Node2D
-## ゲーム 1 回分の配線。お城・鉛筆たち・波・HUD をつなぎ、ゲームオーバーとやり直しを扱う。
+## ゲーム 1 回分の配線。金の駒・旅人たち・波・HUD をつなぎ、ゲームオーバーとやり直しを扱う。
 
 @onready var core: Core = $Core
 @onready var wave_manager: WaveManager = $WaveManager
@@ -35,7 +35,7 @@ func _ready() -> void:
 	wave_manager.start()
 
 
-## 描画フェーズで保存した線があれば、そこから生き物を作ってお城のそばに落とす。
+## 描画フェーズで保存した線があれば、そこから獣を作って石碑のそばに降ろす。
 func _spawn_beast_from_session() -> void:
 	var session := get_node_or_null("/root/GameSession")
 	if session == null or not session.has_beast():

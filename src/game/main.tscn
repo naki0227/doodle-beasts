@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=24 format=3]
 
 [ext_resource type="Script" path="res://src/game/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://src/game/core.tscn" id="2_core"]
@@ -6,27 +6,94 @@
 [ext_resource type="PackedScene" path="res://src/game/enemy.tscn" id="4_enemy"]
 [ext_resource type="Script" path="res://src/game/wave_manager.gd" id="5_wave"]
 [ext_resource type="Script" path="res://src/game/hud.gd" id="6_hud"]
-[ext_resource type="Shader" path="res://assets/shaders/paper.gdshader" id="7_paper"]
+[ext_resource type="Shader" path="res://assets/shaders/sky.gdshader" id="7_sky"]
 [ext_resource type="Script" path="res://src/fx/decal_layer.gd" id="8_decals"]
 [ext_resource type="Script" path="res://src/game/fx_layer.gd" id="9_fx_layer"]
 [ext_resource type="Script" path="res://src/fx/shake_camera.gd" id="10_camera"]
 [ext_resource type="Script" path="res://src/game/arena_decor.gd" id="11_decor"]
+[ext_resource type="Script" path="res://src/fx/backdrop.gd" id="12_backdrop"]
+[ext_resource type="Shader" path="res://assets/shaders/meadow.gdshader" id="13_meadow"]
+[ext_resource type="Shader" path="res://assets/shaders/fog.gdshader" id="14_fog"]
+[ext_resource type="Shader" path="res://assets/shaders/pixelate.gdshader" id="15_pixel"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_paper"]
-shader = ExtResource("7_paper")
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
+shader = ExtResource("7_sky")
+shader_parameter/size = Vector2(1360, 300)
+shader_parameter/sun = Vector2(0.76, 0.86)
+shader_parameter/horizon = 0.92
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_meadow"]
+shader = ExtResource("13_meadow")
+shader_parameter/size = Vector2(1360, 560)
+shader_parameter/fog_depth = 0.14
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fog_far"]
+shader = ExtResource("14_fog")
+shader_parameter/density = 0.9
+shader_parameter/speed = 0.015
+shader_parameter/size = Vector2(1360, 150)
+shader_parameter/scale = 200.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fog_near"]
+shader = ExtResource("14_fog")
+shader_parameter/density = 0.18
+shader_parameter/speed = 0.03
+shader_parameter/size = Vector2(1360, 160)
+shader_parameter/scale = 260.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_pixel"]
+shader = ExtResource("15_pixel")
+shader_parameter/pixel_size = 3.0
+shader_parameter/levels = 14.0
+shader_parameter/dither = 0.6
+shader_parameter/vignette = 0.3
 
 [node name="Main" type="Node2D"]
 y_sort_enabled = true
 script = ExtResource("1_main")
 
-[node name="Background" type="ColorRect" parent="."]
-z_index = -10
-material = SubResource("ShaderMaterial_paper")
+[node name="Sky" type="ColorRect" parent="."]
+z_index = -30
+material = SubResource("ShaderMaterial_sky")
 offset_left = -40.0
 offset_top = -40.0
 offset_right = 1320.0
-offset_bottom = 760.0
-color = Color(1, 1, 1, 1)
+offset_bottom = 260.0
+mouse_filter = 2
+
+[node name="Backdrop" type="Node2D" parent="."]
+z_index = -29
+script = ExtResource("12_backdrop")
+horizon_y = 240.0
+tree_x = 880.0
+height_scale = 0.75
+
+[node name="FogFar" type="ColorRect" parent="."]
+z_index = -26
+material = SubResource("ShaderMaterial_fog_far")
+offset_left = -40.0
+offset_top = 170.0
+offset_right = 1320.0
+offset_bottom = 320.0
+mouse_filter = 2
+
+[node name="Meadow" type="ColorRect" parent="."]
+z_index = -27
+material = SubResource("ShaderMaterial_meadow")
+offset_left = -40.0
+offset_top = 240.0
+offset_right = 1320.0
+offset_bottom = 796.0
+mouse_filter = 2
+
+[node name="FogNear" type="ColorRect" parent="."]
+z_index = -25
+material = SubResource("ShaderMaterial_fog_near")
+offset_left = -40.0
+offset_top = 220.0
+offset_right = 1320.0
+offset_bottom = 380.0
+mouse_filter = 2
 
 [node name="ArenaDecor" type="Node2D" parent="."]
 z_index = -6
@@ -37,17 +104,17 @@ z_index = -5
 script = ExtResource("8_decals")
 
 [node name="Core" parent="." instance=ExtResource("2_core")]
-position = Vector2(640, 400)
+position = Vector2(640, 470)
 
 [node name="Players" type="Node2D" parent="."]
 y_sort_enabled = true
 
 [node name="Player1" parent="Players" instance=ExtResource("3_player")]
-position = Vector2(560, 440)
+position = Vector2(550, 520)
 player_index = 1
 
 [node name="Player2" parent="Players" instance=ExtResource("3_player")]
-position = Vector2(720, 440)
+position = Vector2(730, 520)
 player_index = 2
 
 [node name="Allies" type="Node2D" parent="."]
@@ -68,7 +135,26 @@ script = ExtResource("10_camera")
 script = ExtResource("5_wave")
 enemy_scene = ExtResource("4_enemy")
 enemy_container = NodePath("../Enemies")
+arena = Rect2(20, 262, 1240, 450)
+
+[node name="PixelFilter" type="CanvasLayer" parent="."]
+layer = 1
+
+[node name="Screen" type="ColorRect" parent="PixelFilter"]
+material = SubResource("ShaderMaterial_pixel")
+offset_right = 1280.0
+offset_bottom = 720.0
+mouse_filter = 2
+
+[node name="TextFx" type="CanvasLayer" parent="."]
+layer = 2
+follow_viewport_enabled = true
+
+[node name="Layer" type="Node2D" parent="TextFx"]
+script = ExtResource("9_fx_layer")
+group_name = &"fx_text_layer"
 
 [node name="HUD" type="CanvasLayer" parent="."]
 process_mode = 3
+layer = 3
 script = ExtResource("6_hud")

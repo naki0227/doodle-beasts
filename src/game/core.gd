@@ -1,7 +1,8 @@
 class_name Core
 extends StaticBody2D
-## 全員で守る「お城の絵」。消しゴムにこすられるとヒビが入り、HP が 0 になると消されてゲームオーバー。
-## 鉛筆（プレイヤー）が近くで修理すると描き直される。
+## 全員で守る「金の駒」。刻む者の石碑の上に浮かび、新しい世界のかたちを生む種。
+## 霜の獣に触れられると石碑に霜とヒビが広がり、HP が 0 になると駒が凍りついてゲームオーバー。
+## 旅人（プレイヤー）が近くで手をかざすと直る。
 
 signal hp_changed(hp: float, max_hp: float)
 signal destroyed
@@ -14,13 +15,14 @@ var _destroyed := false
 var _hit_flash := 0.0
 var _t := 0.0
 var _cracks: Array[PackedVector2Array] = []
-var _smudges: Array[Vector3] = []
+var _frost: Array[Vector3] = []
 
 
 func _ready() -> void:
 	hp = max_hp
 	add_to_group(&"core")
-	material = DoodleStyle.doodle_material(1.0, 1.0)
+	material = DoodleStyle.surface_material(1.0, 0.6)
+	GlowNode.attach(self)
 	_make_damage_marks()
 	hp_changed.emit(hp, max_hp)
 
@@ -28,16 +30,16 @@ func _ready() -> void:
 func _make_damage_marks() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7331
-	for i in range(8):
+	for i in range(7):
 		var crack := PackedVector2Array()
-		var p := Vector2(rng.randf_range(-40.0, 40.0), rng.randf_range(-60.0, 20.0))
+		var p := Vector2(rng.randf_range(-16.0, 16.0), rng.randf_range(-74.0, -20.0))
 		crack.append(p)
 		for k in range(4):
-			p += Vector2(rng.randf_range(-9.0, 9.0), rng.randf_range(4.0, 11.0))
+			p += Vector2(rng.randf_range(-6.0, 6.0), rng.randf_range(4.0, 10.0))
 			crack.append(p)
 		_cracks.append(crack)
-	for i in range(6):
-		_smudges.append(Vector3(rng.randf_range(-42.0, 42.0), rng.randf_range(-70.0, 20.0), rng.randf_range(8.0, 16.0)))
+	for i in range(40):
+		_frost.append(Vector3(rng.randf_range(-28.0, 28.0), rng.randf_range(-80.0, 12.0), rng.randf_range(1.0, 2.5)))
 
 
 func _process(delta: float) -> void:
@@ -52,11 +54,11 @@ func take_damage(amount: float, _source: Node = null) -> void:
 	hp = maxf(0.0, hp - amount)
 	_hit_flash = 0.12
 	hp_changed.emit(hp, max_hp)
-	Fx.damage_number(global_position + Vector2(0.0, -80.0), amount, DoodleStyle.HP_LOW)
-	Fx.decal(global_position + Vector2(randf_range(-40.0, 40.0), randf_range(-6.0, 20.0)), DoodleStyle.ERASER_PINK, 3, 10.0)
+	Fx.damage_number(global_position + Vector2(0.0, -150.0), amount, DoodleStyle.HP_LOW)
+	Fx.decal(global_position + Vector2(randf_range(-40.0, 40.0), randf_range(0.0, 20.0)), DoodleStyle.FROST, 3, 10.0)
 	if hp <= 0.0:
 		_destroyed = true
-		Fx.burst(global_position + Vector2(0.0, -30.0), DoodleStyle.CASTLE_WALL, 3.0, 30)
+		Fx.burst(global_position + Vector2(0.0, -110.0), DoodleStyle.FROST, 3.0, 30)
 		Fx.shake(16.0)
 		destroyed.emit()
 
@@ -72,44 +74,51 @@ func is_destroyed() -> bool:
 	return _destroyed
 
 
+func ratio() -> float:
+	return hp / max_hp if max_hp > 0.0 else 0.0
+
+
+func _seed_center() -> Vector2:
+	return Vector2(0.0, -118.0 + sin(_t * 1.6) * 5.0)
+
+
+func draw_glow_into(canvas: Node2D) -> void:
+	var r := ratio()
+	var pulse := 0.8 + 0.2 * sin(_t * 2.0)
+	if _destroyed:
+		return
+	DoodleStyle.draw_glow(canvas, _seed_center(), 90.0, DoodleStyle.GOLD, (0.3 + 0.6 * r) * pulse)
+	DoodleStyle.draw_glow(canvas, Vector2(0.0, -40.0), 50.0, DoodleStyle.GOLD, 0.25 * r)
+
+
 func _draw() -> void:
-	var ratio := hp / max_hp if max_hp > 0.0 else 0.0
-	DoodleStyle.draw_shadow(self, Vector2(0.0, 30.0), Vector2(66.0, 14.0))
-	var wall := DoodleStyle.CASTLE_WALL
+	var r := ratio()
+	DoodleStyle.draw_shadow(self, Vector2(0.0, 16.0), Vector2(62.0, 16.0))
+	# 土台の敷石
+	DoodleStyle.draw_shape(self, DoodleStyle.ellipse(Vector2(0.0, 10.0), Vector2(56.0, 17.0), 22), DoodleStyle.STONE, 2.0, DoodleStyle.INK)
+	DoodleStyle.draw_shape(self, DoodleStyle.ellipse(Vector2(0.0, 6.0), Vector2(46.0, 12.0), 20), DoodleStyle.STONE.lightened(0.1), 1.5, DoodleStyle.STONE_DARK)
+	# 石碑
+	var stone := DoodleStyle.STONE_DARK.lightened(0.15)
 	if _hit_flash > 0.0:
-		wall = wall.lerp(Color.WHITE, 0.7)
-	var roof := DoodleStyle.CASTLE_ROOF
-	# 左右の塔
-	for side in [-1.0, 1.0]:
-		var x0: float = side * 44.0
-		DoodleStyle.draw_shape(self, PackedVector2Array([
-			Vector2(x0 - 14.0, 32.0), Vector2(x0 + 14.0, 32.0), Vector2(x0 + 14.0, -56.0), Vector2(x0 - 14.0, -56.0)]), wall)
-		DoodleStyle.draw_shape(self, PackedVector2Array([
-			Vector2(x0 - 19.0, -54.0), Vector2(x0 + 19.0, -54.0), Vector2(x0, -86.0)]), roof)
-		DoodleStyle.draw_shape(self, DoodleStyle.rounded_rect(Rect2(x0 - 5.0, -38.0, 10.0, 14.0), 5.0), DoodleStyle.INK, 2.0)
-	# 本丸
+		stone = stone.lerp(DoodleStyle.FROST, 0.6)
 	DoodleStyle.draw_shape(self, PackedVector2Array([
-		Vector2(-32.0, 32.0), Vector2(32.0, 32.0), Vector2(32.0, -40.0), Vector2(20.0, -40.0), Vector2(20.0, -50.0),
-		Vector2(8.0, -50.0), Vector2(8.0, -40.0), Vector2(-8.0, -40.0), Vector2(-8.0, -50.0), Vector2(-20.0, -50.0),
-		Vector2(-20.0, -40.0), Vector2(-32.0, -40.0)]), wall)
-	# 扉
-	var door := PackedVector2Array([Vector2(-12.0, 32.0), Vector2(12.0, 32.0), Vector2(12.0, 6.0)])
-	for i in range(9):
-		var a := PI * i / 8.0
-		door.append(Vector2(cos(a) * 12.0, 6.0 - sin(a) * 12.0))
-	door.append(Vector2(-12.0, 6.0))
-	DoodleStyle.draw_shape(self, door, Color("8a5a3c"))
-	# 旗
-	draw_line(Vector2(0.0, -50.0), Vector2(0.0, -96.0), DoodleStyle.INK, 3.0, true)
-	var wave := sin(_t * 5.0) * 4.0
-	DoodleStyle.draw_shape(self, PackedVector2Array([
-		Vector2(0.0, -96.0), Vector2(26.0, -90.0 + wave), Vector2(0.0, -82.0)]), DoodleStyle.CASTLE_FLAG, 2.5)
-	# 傷: HP が減るほどヒビと消し跡が増える
-	var damage := 1.0 - ratio
-	var crack_count := int(round(damage * _cracks.size()))
-	for i in range(crack_count):
-		draw_polyline(_cracks[i], DoodleStyle.INK, 2.0, true)
-	var smudge_count := int(round(maxf(0.0, damage - 0.35) / 0.65 * _smudges.size()))
-	for i in range(smudge_count):
-		var s := _smudges[i]
-		draw_colored_polygon(DoodleStyle.ellipse(Vector2(s.x, s.y), Vector2(s.z, s.z * 0.6), 14), Color(DoodleStyle.PAPER, 0.85))
+		Vector2(-24, 6), Vector2(24, 6), Vector2(20, -76), Vector2(8, -88), Vector2(-12, -86), Vector2(-21, -74)]), stone, 2.0, DoodleStyle.INK)
+	# 刻まれたルーン（金が HP に応じて光る）
+	var rune := Color(DoodleStyle.GOLD_LIGHT, 0.35 + 0.65 * r)
+	draw_line(Vector2(0, -78), Vector2(0, -10), rune, 2.0)
+	draw_polyline(PackedVector2Array([Vector2(-11, -66), Vector2(0, -56), Vector2(11, -66)]), rune, 2.0)
+	draw_polyline(PackedVector2Array([Vector2(-11, -40), Vector2(0, -30), Vector2(11, -40)]), rune, 2.0)
+	draw_arc(Vector2(0, -48), 9.0, 0.0, TAU, 16, rune, 1.5)
+	# 傷: ヒビと霜
+	var damage := 1.0 - r
+	for i in range(int(round(damage * _cracks.size()))):
+		draw_polyline(_cracks[i], DoodleStyle.INK, 1.5)
+	for i in range(int(round(damage * _frost.size()))):
+		var f := _frost[i]
+		draw_circle(Vector2(f.x, f.y), f.z, Color(DoodleStyle.FROST, 0.85))
+	# 金の駒
+	if not _destroyed:
+		var seed_color := DoodleStyle.GOLD.lerp(DoodleStyle.FROST_DEEP, damage * 0.6)
+		DoodleStyle.draw_d20(self, _seed_center(), 16.0, seed_color)
+	else:
+		DoodleStyle.draw_d20(self, Vector2(0.0, -96.0), 16.0, DoodleStyle.FROST_DEEP, DoodleStyle.INK)

@@ -4,7 +4,7 @@ extends CharacterBody2D
 ## 見た目・当たり判定・ステータスはすべて線のデータから build() で導出する。
 ## 判断は子の BehaviorTree が行い、このクラスは敵と同じ「移動・攻撃・被弾」の契約だけを提供する。
 ##
-## 見た目はステッカー風: 白い縁取り + 紙の厚み + クレヨンの塗り + インクの線。
+## 見た目は「石と骨のかたまりに、金継ぎの継ぎ目が光る獣」。描いた線が太い石の体になり、その芯を金の線が走る。
 ## Visual の下に Body と Weapon を分けて持ち、武器だけを振り回せるようにしている。
 
 signal hp_changed(hp: float, max_hp: float)
@@ -12,12 +12,13 @@ signal died(beast: Beast)
 
 ## 生き物の見た目の大きさ（長い辺のピクセル数）。
 @export var target_size: float = 130.0
-@export var body_fill: Color = DoodleStyle.P1_LIGHT
-@export var weapon_fill: Color = DoodleStyle.P2_LIGHT
-@export var stroke_width: float = 3.0
-## 白い縁取りの太さ。
-@export var border: float = 7.0
-## 紙の厚み（下にずらして描く量）。
+@export var body_fill: Color = DoodleStyle.BEAST_BODY
+@export var weapon_fill: Color = DoodleStyle.BEAST_WEAPON
+## 金の線の太さの半分。
+@export var stroke_width: float = 2.0
+## 線のまわりの石の肉付き。
+@export var border: float = 8.0
+## 石の厚み（下にずらして描く量）。
 @export var thickness: float = 6.0
 
 const ATTACK_WORDS := {
@@ -134,7 +135,7 @@ func _build_shape(body_strokes: Array[PackedVector2Array], weapon_strokes: Array
 	var body := StrokeTools.transformed(body_strokes, -source_rect.get_center(), scale_factor)
 	body_rect = StrokeTools.bounds(body)
 
-	var material_shared := DoodleStyle.doodle_material(1.1, 1.0)
+	var material_shared := DoodleStyle.surface_material(1.0, 0.5)
 	var body_node := Node2D.new()
 	body_node.name = "Body"
 	visual.add_child(body_node)
@@ -161,33 +162,34 @@ func _build_shape(body_strokes: Array[PackedVector2Array], weapon_strokes: Array
 		collision.polygon = fallback
 
 
-## 線をステッカー風に組み立てる。下から順に: 厚み → 縁の影 → 白い縁 → 塗り → インクの線。
+## 線を石の体に組み立てる。下から順に: 厚み（暗い底面）→ 輪郭 → 石の肉 → 内側の空洞 → 金の光 → 金の線。
 ## 線は Line2D で描く（閉じた線を多角形に太らせると内側の穴が消えて塗りつぶされるため）。
-## 閉じた形の中にある閉じた形（目など）は白で塗る。
+## 閉じた形の中にある閉じた形（目など）は暗い空洞にする。
 func _add_sticker(parent: Node2D, strokes: Array[PackedVector2Array], fill: Color, shared: ShaderMaterial) -> void:
 	var fills: Array[PackedVector2Array] = []
 	for stroke in strokes:
 		if StrokeTools.is_closed(stroke) and _can_fill(stroke):
 			fills.append(stroke)
+	var flesh := (stroke_width + border) * 2.0
 	var layers := [
-		{"offset": Vector2(0.0, thickness), "width": stroke_width + border + 1.5, "color": Color("b9ab92")},
-		{"offset": Vector2.ZERO, "width": stroke_width + border + 1.5, "color": Color("d8ccb4")},
-		{"offset": Vector2.ZERO, "width": stroke_width + border, "color": DoodleStyle.PAPER},
+		{"offset": Vector2(0.0, thickness), "width": flesh + 4.0, "color": DoodleStyle.BEAST_UNDER},
+		{"offset": Vector2.ZERO, "width": flesh + 4.0, "color": DoodleStyle.BEAST_RIM},
+		{"offset": Vector2.ZERO, "width": flesh, "color": fill},
 	]
 	for layer in layers:
 		for polygon in fills:
 			_add_polygon(parent, polygon, layer["color"], layer["offset"], shared)
 		for stroke in strokes:
-			_add_line(parent, stroke, layer["width"] * 2.0, layer["color"], layer["offset"], shared)
+			_add_line(parent, stroke, layer["width"], layer["color"], layer["offset"], shared)
 	for polygon in fills:
-		var color := fill
 		for other in fills:
 			if other != polygon and _inside(polygon, other):
-				color = DoodleStyle.PAPER
+				_add_polygon(parent, polygon, DoodleStyle.BEAST_HOLLOW, Vector2.ZERO, shared)
 				break
-		_add_polygon(parent, polygon, color, Vector2.ZERO, shared)
 	for stroke in strokes:
-		_add_line(parent, stroke, stroke_width * 2.0, DoodleStyle.INK, Vector2.ZERO, shared)
+		_add_line(parent, stroke, stroke_width * 5.0, Color(DoodleStyle.GOLD, 0.16), Vector2.ZERO, DoodleStyle.glow_material())
+	for stroke in strokes:
+		_add_line(parent, stroke, stroke_width * 2.0, DoodleStyle.GOLD_LIGHT, Vector2.ZERO, shared)
 
 
 ## inner の重心が outer の中にあるか。
@@ -214,7 +216,7 @@ func _add_polygon(parent: Node2D, polygon: PackedVector2Array, color: Color, off
 	parent.add_child(shape)
 
 
-func _add_line(parent: Node2D, stroke: PackedVector2Array, width: float, color: Color, offset: Vector2, shared: ShaderMaterial) -> void:
+func _add_line(parent: Node2D, stroke: PackedVector2Array, width: float, color: Color, offset: Vector2, shared: Material) -> void:
 	if stroke.size() < 2:
 		return
 	var line := Line2D.new()
@@ -253,7 +255,7 @@ func _physics_process(delta: float) -> void:
 			body.rotation = lerpf(body.rotation, 0.0, delta * 8.0)
 			var breath := sin(_t * 2.6) * 0.03
 			body.scale = Vector2(1.0 - breath, 1.0 + breath)
-	visual.modulate = Color(1.6, 1.6, 1.6) if _hit_flash > 0.0 else Color.WHITE
+	visual.modulate = Color(1.5, 1.6, 1.8) if _hit_flash > 0.0 else Color.WHITE
 	queue_redraw()
 
 
@@ -332,8 +334,8 @@ func _play_attack(target: Node2D) -> void:
 				_weapon_tween.tween_property(weapon, "rotation", 0.7, 0.07)
 				_weapon_tween.tween_property(weapon, "rotation", 0.0, 0.2)
 				shake = 4.0
-	Fx.burst(hit_at, DoodleStyle.ERASER_PINK, 1.0 + shake * 0.05, 8)
-	Fx.pop_text(hit_at + Vector2(0.0, -34.0), ATTACK_WORDS.get(weapon_kind, "ポカ"), DoodleStyle.P2.darkened(0.15), 28 + int(shake))
+	Fx.burst(hit_at, DoodleStyle.FROST, 1.0 + shake * 0.05, 8)
+	Fx.pop_text(hit_at + Vector2(0.0, -34.0), ATTACK_WORDS.get(weapon_kind, "ポカ"), DoodleStyle.GOLD_LIGHT, 26 + int(shake))
 	Fx.shake(shake)
 	Fx.hitstop(stop)
 
@@ -349,7 +351,7 @@ func take_damage(amount: float, _source: Node = null) -> void:
 	if hp <= 0.0:
 		_dead = true
 		Fx.burst(global_position, body_fill, 2.5, 24)
-		Fx.pop_text(global_position + Vector2(0.0, -60.0), "ビリッ…", DoodleStyle.HP_LOW, 34)
+		Fx.pop_text(global_position + Vector2(0.0, -60.0), "くずれた…", DoodleStyle.HP_LOW, 30)
 		Fx.shake(12.0)
 		died.emit(self)
 		queue_free()
@@ -369,8 +371,8 @@ func play_entrance(bt_delay: float = 0.9) -> void:
 	var tween := create_tween()
 	tween.tween_property(visual, "position:y", 0.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.tween_callback(func() -> void:
-		Fx.burst(global_position + Vector2(0.0, body_rect.end.y * 0.5), DoodleStyle.INK, 2.6, 16)
-		Fx.pop_text(global_position + Vector2(0.0, body_rect.position.y - 30.0), "ドーン！", DoodleStyle.ACCENT_RED, 44)
+		Fx.burst(global_position + Vector2(0.0, body_rect.end.y * 0.5), DoodleStyle.GOLD_LIGHT, 2.6, 16)
+		Fx.pop_text(global_position + Vector2(0.0, body_rect.position.y - 30.0), "よみがえれ！", DoodleStyle.GOLD_LIGHT, 40)
 		Fx.shake(14.0))
 	tween.tween_property(visual, "scale", Vector2(1.3, 0.7), 0.06)
 	tween.tween_property(visual, "scale", Vector2(0.9, 1.12), 0.1)

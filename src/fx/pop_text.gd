@@ -2,7 +2,7 @@ extends Node2D
 ## ふわっと出て消える文字。擬音とダメージ数字に使う。
 
 var text: String = ""
-var color: Color = DoodleStyle.INK
+var color: Color = DoodleStyle.CREAM
 var font_size: int = 30
 var rotation_deg: float = 0.0
 var rise: float = 26.0
@@ -32,6 +32,5 @@ func _draw() -> void:
 	var font: Font = DoodleStyle.HAND_FONT if use_hand_font else DoodleStyle.UI_FONT
 	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	var pos := Vector2(-width * 0.5, font_size * 0.35)
-	draw_string_outline(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 7, Color(DoodleStyle.PAPER, alpha))
-	draw_string_outline(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 3, Color(DoodleStyle.INK, alpha))
+	draw_string_outline(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 6, Color(DoodleStyle.NIGHT, alpha * 0.9))
 	draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(color, alpha))

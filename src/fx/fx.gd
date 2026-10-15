@@ -26,6 +26,15 @@ static func layer() -> Node2D:
 	return tree.get_first_node_in_group(&"fx_layer") as Node2D
 
 
+## 文字の演出を置く場所。ピクセル化の後処理より上にあり、文字がくっきり読める。なければ fx_layer。
+static func text_layer() -> Node2D:
+	var tree := _tree()
+	if tree == null:
+		return null
+	var found := tree.get_first_node_in_group(&"fx_text_layer") as Node2D
+	return found if found != null else layer()
+
+
 static func shake(amount: float) -> void:
 	var tree := _tree()
 	if tree == null:
@@ -62,7 +71,7 @@ static func burst(at: Vector2, color: Color, size: float = 1.0, crumbs: int = 10
 
 ## 漫画の擬音（ドカッ、ザシュ など）。
 static func pop_text(at: Vector2, text: String, color: Color, size: int = 30) -> void:
-	var target := layer()
+	var target := text_layer()
 	if target == null:
 		return
 	var effect := POP_SCRIPT.new() as Node2D
@@ -74,8 +83,8 @@ static func pop_text(at: Vector2, text: String, color: Color, size: int = 30) ->
 	target.add_child(effect)
 
 
-static func damage_number(at: Vector2, amount: float, color: Color = DoodleStyle.INK) -> void:
-	var target := layer()
+static func damage_number(at: Vector2, amount: float, color: Color = DoodleStyle.CREAM) -> void:
+	var target := text_layer()
 	if target == null:
 		return
 	var effect := POP_SCRIPT.new() as Node2D

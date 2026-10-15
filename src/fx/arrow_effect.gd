@@ -24,7 +24,7 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	var dir := (to - from).normalized()
 	var tail := -dir * 26.0
-	draw_line(tail, Vector2.ZERO, DoodleStyle.INK, 3.0, true)
-	draw_colored_polygon(PackedVector2Array([dir * 8.0, dir.orthogonal() * 5.0, -dir.orthogonal() * 5.0]), DoodleStyle.INK)
-	draw_line(tail, tail - dir * 6.0 + dir.orthogonal() * 6.0, DoodleStyle.P2, 3.0)
-	draw_line(tail, tail - dir * 6.0 - dir.orthogonal() * 6.0, DoodleStyle.P2, 3.0)
+	draw_line(tail, Vector2.ZERO, DoodleStyle.BONE, 3.0)
+	draw_colored_polygon(PackedVector2Array([dir * 8.0, dir.orthogonal() * 5.0, -dir.orthogonal() * 5.0]), DoodleStyle.GOLD_LIGHT)
+	draw_line(tail, tail - dir * 6.0 + dir.orthogonal() * 6.0, DoodleStyle.GOLD, 3.0)
+	draw_line(tail, tail - dir * 6.0 - dir.orthogonal() * 6.0, DoodleStyle.GOLD, 3.0)

@@ -1,17 +1,102 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://src/title/title.gd" id="1_title"]
-[ext_resource type="Shader" path="res://assets/shaders/paper.gdshader" id="2_paper"]
+[ext_resource type="Shader" path="res://assets/shaders/sky.gdshader" id="2_sky"]
+[ext_resource type="Script" path="res://src/fx/backdrop.gd" id="3_backdrop"]
+[ext_resource type="Shader" path="res://assets/shaders/meadow.gdshader" id="4_meadow"]
+[ext_resource type="Shader" path="res://assets/shaders/fog.gdshader" id="5_fog"]
+[ext_resource type="Shader" path="res://assets/shaders/pixelate.gdshader" id="6_pixel"]
+[ext_resource type="Script" path="res://src/title/title_layer.gd" id="7_layer"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_paper"]
-shader = ExtResource("2_paper")
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
+shader = ExtResource("2_sky")
+shader_parameter/size = Vector2(1280, 470)
+shader_parameter/sun = Vector2(0.78, 0.9)
+shader_parameter/horizon = 0.97
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_meadow"]
+shader = ExtResource("4_meadow")
+shader_parameter/size = Vector2(1280, 280)
+shader_parameter/fog_depth = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fog"]
+shader = ExtResource("5_fog")
+shader_parameter/density = 0.9
+shader_parameter/speed = 0.012
+shader_parameter/size = Vector2(1280, 200)
+shader_parameter/scale = 240.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fog_low"]
+shader = ExtResource("5_fog")
+shader_parameter/density = 0.4
+shader_parameter/speed = 0.02
+shader_parameter/size = Vector2(1280, 160)
+shader_parameter/scale = 300.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_pixel"]
+shader = ExtResource("6_pixel")
+shader_parameter/pixel_size = 3.0
+shader_parameter/levels = 14.0
+shader_parameter/dither = 0.6
+shader_parameter/vignette = 0.4
 
 [node name="Title" type="Node2D"]
 script = ExtResource("1_title")
 
-[node name="Background" type="ColorRect" parent="."]
-z_index = -10
-material = SubResource("ShaderMaterial_paper")
+[node name="Sky" type="ColorRect" parent="."]
+z_index = -30
+material = SubResource("ShaderMaterial_sky")
+offset_right = 1280.0
+offset_bottom = 470.0
+mouse_filter = 2
+
+[node name="Backdrop" type="Node2D" parent="."]
+z_index = -29
+script = ExtResource("3_backdrop")
+horizon_y = 452.0
+tree_x = 1010.0
+height_scale = 1.9
+
+[node name="Fog" type="ColorRect" parent="."]
+z_index = -26
+material = SubResource("ShaderMaterial_fog")
+offset_top = 340.0
+offset_right = 1280.0
+offset_bottom = 540.0
+mouse_filter = 2
+
+[node name="Meadow" type="ColorRect" parent="."]
+z_index = -27
+material = SubResource("ShaderMaterial_meadow")
+offset_top = 450.0
+offset_right = 1280.0
+offset_bottom = 730.0
+mouse_filter = 2
+
+[node name="FogLow" type="ColorRect" parent="."]
+z_index = -25
+material = SubResource("ShaderMaterial_fog_low")
+offset_top = 430.0
+offset_right = 1280.0
+offset_bottom = 590.0
+mouse_filter = 2
+
+[node name="Foreground" type="Node2D" parent="."]
+z_index = 5
+script = ExtResource("7_layer")
+method_name = &"draw_foreground"
+
+[node name="PixelFilter" type="CanvasLayer" parent="."]
+layer = 1
+
+[node name="Screen" type="ColorRect" parent="PixelFilter"]
+material = SubResource("ShaderMaterial_pixel")
 offset_right = 1280.0
 offset_bottom = 720.0
-color = Color(1, 1, 1, 1)
+mouse_filter = 2
+
+[node name="Text" type="CanvasLayer" parent="."]
+layer = 2
+
+[node name="Canvas" type="Node2D" parent="Text"]
+script = ExtResource("7_layer")

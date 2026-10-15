@@ -2,8 +2,10 @@
 
 | 素材 | 場所 | ライセンス |
 |---|---|---|
-| Yusei Magic（見出し用の手書きフォント） | `assets/fonts/YuseiMagic-Regular.ttf` | SIL Open Font License 1.1（`assets/fonts/YuseiMagic-OFL.txt`） |
-| Zen Maru Gothic Bold（本文用の丸ゴシック） | `assets/fonts/ZenMaruGothic-Bold.ttf` | SIL Open Font License 1.1（`assets/fonts/ZenMaruGothic-OFL.txt`） |
+| Zen Old Mincho Black（見出し） | `assets/fonts/ZenOldMincho-Black.ttf` | SIL Open Font License 1.1（`assets/fonts/ZenOldMincho-OFL.txt`） |
+| Zen Old Mincho Bold（本文） | `assets/fonts/ZenOldMincho-Bold.ttf` | 同上 |
 
-どちらも Google Fonts のリポジトリ（github.com/google/fonts）から取得した。OFL はゲームへの同梱と販売を認めている。フォント単体での販売はできない。
-製品版のクレジット画面にもこの 2 つを載せる。
+Google Fonts のリポジトリ（github.com/google/fonts）から取得した。OFL はゲームへの同梱と販売を認めている。フォント単体での販売はできない。
+製品版のクレジット画面にも載せる。
+
+`docs/moodboard/` の画像は雰囲気の参考資料で、ゲームには同梱しない（`.gdignore` で除外）。製品に使う場合は権利を確認すること。
