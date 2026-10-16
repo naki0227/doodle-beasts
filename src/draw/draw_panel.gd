@@ -30,6 +30,8 @@ var _t := 0.0
 var _stamp := 0.0
 var _ink: InkLayer
 var _paper: ColorRect
+var _pen: AudioStreamPlayer
+var _last_cursor := Vector2.ZERO
 
 
 ## 線だけを描く子ノード。紙（_paper）より手前、飾りや文字と同じ高さに線を描く。
@@ -69,6 +71,9 @@ func _ready() -> void:
 	_ink = InkLayer.new()
 	_ink.panel = self
 	add_child(_ink)
+	_pen = Sound.loop_player(self, "pen")
+	if _pen.stream != null:
+		_pen.play()
 	queue_redraw()
 
 
@@ -98,8 +103,19 @@ func _process(delta: float) -> void:
 			set_done(not done)
 	elif Input.is_action_just_pressed("p%d_done" % player_index) and done and not locked:
 		set_done(false)
+	_update_pen_sound(delta)
 	queue_redraw()
 	_ink.queue_redraw()
+
+
+## 描いているあいだだけ、ペンが紙をこする音を出す。
+func _update_pen_sound(delta: float) -> void:
+	if _pen == null:
+		return
+	var moved := cursor.distance_to(_last_cursor) > 0.5
+	_last_cursor = cursor
+	var target := -12.0 if (drawing and moved) else -60.0
+	_pen.volume_db = move_toward(_pen.volume_db, target, delta * (240.0 if target > _pen.volume_db else 120.0))
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -198,6 +214,8 @@ func load_strokes(source: Array[PackedVector2Array]) -> void:
 func set_done(value: bool) -> void:
 	if drawing:
 		end_stroke()
+	if value and not done:
+		Sound.play("seal", 0.0, 0.03)
 	done = value
 	done_changed.emit(done)
 	queue_redraw()

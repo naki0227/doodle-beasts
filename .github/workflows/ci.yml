@@ -37,7 +37,11 @@ jobs:
         run: ~/godot/godot --headless --path . -s res://tests/check_scripts.gd
 
       - name: Unit tests
-        run: ~/godot/godot --headless --path . -s res://tests/run_tests.gd
+        run: |
+          set -o pipefail
+          ~/godot/godot --headless --path . -s res://tests/run_tests.gd 2>&1 | tee tests.log
+          # テスト関数の途中のスクリプトエラーは実行器から見えないので、出力で落とす
+          ! grep -E "SCRIPT ERROR" tests.log
 
       - name: Simulation (waves reach the core)
         run: ~/godot/godot --headless --path . -s res://tests/simulate.gd

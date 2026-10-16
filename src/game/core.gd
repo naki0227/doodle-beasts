@@ -51,7 +51,12 @@ func _process(delta: float) -> void:
 func take_damage(amount: float, _source: Node = null) -> void:
 	if _destroyed:
 		return
+	# 盾を持った獣がそばにいれば、傷が減る。
+	for node in get_tree().get_nodes_in_group(&"beasts"):
+		if node.has_method("shield_reduction"):
+			amount *= 1.0 - float(node.shield_reduction(global_position))
 	hp = maxf(0.0, hp - amount)
+	Sound.play("seed_hit")
 	_hit_flash = 0.12
 	hp_changed.emit(hp, max_hp)
 	Fx.damage_number(global_position + Vector2(0.0, -150.0), amount, DoodleStyle.HP_LOW)
@@ -60,6 +65,7 @@ func take_damage(amount: float, _source: Node = null) -> void:
 		_destroyed = true
 		Fx.burst(global_position + Vector2(0.0, -110.0), DoodleStyle.FROST, 3.0, 30)
 		Fx.shake(16.0)
+		Sound.play("shatter", 3.0, 0.0)
 		destroyed.emit()
 
 

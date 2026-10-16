@@ -1,13 +1,7 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/game/beast.gd" id="1_beast"]
 [ext_resource type="Script" path="res://src/bt/behavior_tree.gd" id="2_tree"]
-[ext_resource type="Script" path="res://src/bt/bt_selector.gd" id="3_selector"]
-[ext_resource type="Script" path="res://src/bt/bt_sequence.gd" id="4_sequence"]
-[ext_resource type="Script" path="res://src/ai/bt_find_nearest_player.gd" id="5_find"]
-[ext_resource type="Script" path="res://src/ai/bt_is_target_in_range.gd" id="6_in_range"]
-[ext_resource type="Script" path="res://src/ai/bt_attack_target.gd" id="7_attack"]
-[ext_resource type="Script" path="res://src/ai/bt_move_to_target.gd" id="8_move"]
 
 [node name="Beast" type="CharacterBody2D"]
 collision_layer = 1
@@ -22,31 +16,3 @@ script = ExtResource("1_beast")
 [node name="BehaviorTree" type="Node" parent="." node_paths=PackedStringArray("agent")]
 script = ExtResource("2_tree")
 agent = NodePath("..")
-
-[node name="Root" type="Node" parent="BehaviorTree"]
-script = ExtResource("3_selector")
-
-[node name="HuntEnemy" type="Node" parent="BehaviorTree/Root"]
-script = ExtResource("4_sequence")
-
-[node name="FindNearestEnemy" type="Node" parent="BehaviorTree/Root/HuntEnemy"]
-script = ExtResource("5_find")
-radius = 900.0
-group = &"enemies"
-
-[node name="EngageOrApproach" type="Node" parent="BehaviorTree/Root/HuntEnemy"]
-script = ExtResource("3_selector")
-
-[node name="Engage" type="Node" parent="BehaviorTree/Root/HuntEnemy/EngageOrApproach"]
-script = ExtResource("4_sequence")
-
-[node name="IsTargetInRange" type="Node" parent="BehaviorTree/Root/HuntEnemy/EngageOrApproach/Engage"]
-script = ExtResource("6_in_range")
-range = 60.0
-
-[node name="AttackTarget" type="Node" parent="BehaviorTree/Root/HuntEnemy/EngageOrApproach/Engage"]
-script = ExtResource("7_attack")
-
-[node name="MoveToTarget" type="Node" parent="BehaviorTree/Root/HuntEnemy/EngageOrApproach"]
-script = ExtResource("8_move")
-stop_distance = 50.0

@@ -43,6 +43,13 @@ var attack_interval: float = 1.0
 var weapon_kind: ShapeAnalyzer.Weapon = ShapeAnalyzer.Weapon.NONE
 var analysis: Dictionary = {}
 var attacks_landed: int = 0
+## 描いた形から決まった性格（ShapeAnalyzer.NATURES のキー）。
+var nature: String = "none"
+## 目の数と、見える範囲（標的を探す半径）。
+var eyes: int = 0
+var vision: float = ShapeAnalyzer.VISION_BASE
+## 盾の性格は敵を引きつける（敵の索敵で近く見える）。
+var taunting: bool = false
 ## 見た目の外接矩形（Visual のローカル座標）。影や HP バーの位置に使う。
 var body_rect: Rect2 = Rect2(-20.0, -20.0, 40.0, 40.0)
 
@@ -57,6 +64,11 @@ var _lunge_dir := Vector2.RIGHT
 var _weapon_tween: Tween
 var _entering := false
 var _overlay: Node2D
+var _retreat_timer := 0.0
+var _whim_timer := 3.0
+var _whim_left := 0.0
+var _announced := ""
+var _announce_cooldown := 0.0
 
 @onready var _collision: CollisionPolygon2D = $CollisionPolygon2D
 @onready var _visual: Node2D = $Visual
@@ -99,9 +111,15 @@ func build(body_strokes: Array[PackedVector2Array], weapon_strokes: Array[Packed
 	defense = clampf(analysis["defense"] + profile["defense_bonus"], 0.0, 0.8)
 	attack_range = profile["range"]
 	attack_interval = 1.0 * profile["interval_mul"]
+	nature = analysis.get("nature", "none")
+	eyes = analysis.get("eyes", 0)
+	vision = analysis.get("vision", ShapeAnalyzer.VISION_BASE)
+	taunting = nature == "bulwark"
 	_built = true
 	_build_shape(body_strokes, weapon_strokes)
-	_configure_reach()
+	var tree_node := get_node_or_null("BehaviorTree") as BehaviorTree
+	if tree_node != null:
+		BehaviorBuilder.install(tree_node, BehaviorBuilder.build_beast(self))
 	hp_changed.emit(hp, max_hp)
 
 
@@ -111,13 +129,37 @@ func reach() -> float:
 	return maxf(body_rect.size.x, body_rect.size.y) * 0.5 + attack_range * 0.6
 
 
-func _configure_reach() -> void:
-	var in_range := get_node_or_null("BehaviorTree/Root/HuntEnemy/EngageOrApproach/Engage/IsTargetInRange") as BTIsTargetInRange
-	var move := get_node_or_null("BehaviorTree/Root/HuntEnemy/EngageOrApproach/MoveToTarget") as BTMoveToTarget
-	if in_range != null:
-		in_range.range = reach()
-	if move != null:
-		move.stop_distance = reach() - 14.0
+## 性格と武器をひとことで。HUD や記録帳に出す。
+func behavior_summary() -> String:
+	return "%s・%s" % [ShapeAnalyzer.nature_label(nature), weapon_label()]
+
+
+## 遊撃の獣は、一撃のあと少しのあいだ身を引く。
+func is_retreating() -> bool:
+	return _retreat_timer > 0.0
+
+
+## 謎の武器の獣は、ときどき気まぐれに歩きまわる。
+func is_whimsical() -> bool:
+	return _whim_left > 0.0
+
+
+## いまの行動を頭上に出す。同じ言葉は繰り返さない。
+func announce(text: String) -> void:
+	if text == _announced or _announce_cooldown > 0.0:
+		return
+	_announced = text
+	_announce_cooldown = 0.8
+	if text == "見張る" or text == "":
+		return
+	Fx.pop_text(global_position + Vector2(0.0, body_rect.position.y - 34.0), text, DoodleStyle.CREAM, 18)
+
+
+## 盾を持った獣がそばにいると、駒の受ける傷が減る（Core が問い合わせる）。
+func shield_reduction(core_position: Vector2) -> float:
+	if weapon_kind != ShapeAnalyzer.Weapon.SHIELD or _dead:
+		return 0.0
+	return 0.4 if global_position.distance_to(core_position) <= 180.0 else 0.0
 
 
 func _build_shape(body_strokes: Array[PackedVector2Array], weapon_strokes: Array[PackedVector2Array]) -> void:
@@ -235,6 +277,15 @@ func _add_line(parent: Node2D, stroke: PackedVector2Array, width: float, color: 
 func _physics_process(delta: float) -> void:
 	_t += delta
 	_attack_timer = maxf(0.0, _attack_timer - delta)
+	_retreat_timer = maxf(0.0, _retreat_timer - delta)
+	_announce_cooldown = maxf(0.0, _announce_cooldown - delta)
+	if weapon_kind == ShapeAnalyzer.Weapon.UNKNOWN:
+		_whim_left = maxf(0.0, _whim_left - delta)
+		_whim_timer -= delta
+		if _whim_timer <= 0.0:
+			_whim_timer = randf_range(4.0, 7.0)
+			if randf() < 0.35:
+				_whim_left = 1.8
 	_hit_flash = maxf(0.0, _hit_flash - delta)
 	_lunge = maxf(0.0, _lunge - delta * 4.0)
 	var visual := get_node_or_null("Visual") as Node2D
@@ -283,8 +334,23 @@ func attack(target: Node) -> bool:
 		attacks_landed += 1
 	var target_2d := target as Node2D
 	if target_2d != null:
+		if weapon_kind == ShapeAnalyzer.Weapon.HAMMER and is_inside_tree():
+			_splash(target_2d)
 		_play_attack(target_2d)
+	if nature == "skirmish":
+		_retreat_timer = 0.55
 	return true
+
+
+## ハンマー: 当たった敵のまわりの敵にも半分の傷。
+func _splash(center: Node2D) -> void:
+	var at := center.global_position
+	for node in get_tree().get_nodes_in_group(&"enemies"):
+		var other := node as Node2D
+		if other == null or other == center or not other.has_method("take_damage"):
+			continue
+		if other.global_position.distance_to(at) <= 80.0:
+			other.take_damage(attack_damage * 0.5, self)
 
 
 ## 武器ごとの振り方と、当たりの演出。
@@ -338,6 +404,15 @@ func _play_attack(target: Node2D) -> void:
 	Fx.pop_text(hit_at + Vector2(0.0, -34.0), ATTACK_WORDS.get(weapon_kind, "ポカ"), DoodleStyle.GOLD_LIGHT, 26 + int(shake))
 	Fx.shake(shake)
 	Fx.hitstop(stop)
+	match weapon_kind:
+		ShapeAnalyzer.Weapon.HAMMER, ShapeAnalyzer.Weapon.SHIELD:
+			Sound.play("hit_heavy")
+		ShapeAnalyzer.Weapon.BOW:
+			Sound.play("bow")
+		ShapeAnalyzer.Weapon.CLAWS, ShapeAnalyzer.Weapon.NONE:
+			Sound.play("hit_light")
+		_:
+			Sound.play("hit_blade")
 
 
 func take_damage(amount: float, _source: Node = null) -> void:
@@ -353,6 +428,8 @@ func take_damage(amount: float, _source: Node = null) -> void:
 		Fx.burst(global_position, body_fill, 2.5, 24)
 		Fx.pop_text(global_position + Vector2(0.0, -60.0), "くずれた…", DoodleStyle.HP_LOW, 30)
 		Fx.shake(12.0)
+		Sound.play("hit_heavy", 2.0)
+		Sound.play("shatter", 0.0, 0.0)
 		died.emit(self)
 		queue_free()
 
@@ -373,6 +450,7 @@ func play_entrance(bt_delay: float = 0.9) -> void:
 	tween.tween_callback(func() -> void:
 		Fx.burst(global_position + Vector2(0.0, body_rect.end.y * 0.5), DoodleStyle.GOLD_LIGHT, 2.6, 16)
 		Fx.pop_text(global_position + Vector2(0.0, body_rect.position.y - 30.0), "よみがえれ！", DoodleStyle.GOLD_LIGHT, 40)
+		Sound.play("land", 0.0, 0.0)
 		Fx.shake(14.0))
 	tween.tween_property(visual, "scale", Vector2(1.3, 0.7), 0.06)
 	tween.tween_property(visual, "scale", Vector2(0.9, 1.12), 0.1)

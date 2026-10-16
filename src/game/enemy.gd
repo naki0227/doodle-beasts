@@ -50,6 +50,7 @@ func _ready() -> void:
 	material = DoodleStyle.surface_material(0.6, 0.0)
 	_t = randf() * 10.0
 	Fx.burst(global_position + Vector2(0.0, -10.0), _crystal_light, 0.6, 4)
+	Sound.play("frost_spawn")
 
 
 func _physics_process(delta: float) -> void:
@@ -85,6 +86,7 @@ func attack(target: Node) -> bool:
 		if absf(_lunge_dir.x) > 0.1:
 			_face = signf(_lunge_dir.x)
 		Fx.burst(global_position.lerp(target_2d.global_position, 0.7) + Vector2(0.0, -20.0), _crystal_light, 0.5, 4)
+	Sound.play("enemy_attack")
 	return true
 
 
@@ -106,6 +108,7 @@ func die() -> void:
 	Fx.pop_text(global_position + Vector2(0.0, -50.0), "パキン", _crystal_light, 22)
 	Fx.decal(global_position, _crystal_light, 8, 18.0)
 	Fx.shake(4.0)
+	Sound.play("shatter")
 	died.emit(self)
 	queue_free()
 

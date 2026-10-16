@@ -59,20 +59,47 @@ Root (Selector)
 
 読み方: 「近くにプレイヤーがいれば、射程内なら殴る、遠ければ近づく。いなければ拠点に同じことをする」。
 
-## 味方の生き物のツリー（`src/game/beast.tscn`）
+## 獣と旅人のツリー（コードで組み立てる）
+
+よみがえりの獣のツリーは、描いた形から決まる性格・目・武器によって変わる。シーンには置かず、`src/game/behavior_builder.gd` が組み立てて差し替える。
 
 ```
 Root (Selector)
-└─ HuntEnemy (Sequence)
-   ├─ FindNearestEnemy  group=enemies radius=900
-   └─ EngageOrApproach (Selector)
-      ├─ Engage (Sequence)
-      │  ├─ IsTargetInRange  range=60
-      │  └─ AttackTarget
-      └─ MoveToTarget  stop_distance=50
+├─ Whim (Sequence)         謎の武器だけ: Check(is_whimsical) → Announce → Wander
+├─ Withdraw (Sequence)     遊撃だけ: Check(is_retreating) → Retreat
+├─ Hunt (Sequence)
+│  ├─ FindTarget           半径 = 見える範囲（目の数）。性格で選び方が変わる
+│  ├─ Announce             「突撃！」「駒を守る！」など。切り替わったときだけ頭上に出る
+│  └─ Engage (Selector)
+│     ├─ Strike (Sequence): IsTargetInRange → (弓なら KeepDistance) → AttackTarget
+│     └─ MoveToTarget      （盾の性格は Intercept: 駒と敵のあいだに立つ）
+└─ Home (Sequence)         Announce「見張る」→ MoveToAnchor（駒のそばの持ち場）
 ```
 
-敵と同じ葉ノードを、`group` を変えるだけで使い回している。生き物は `players` グループにも入るので、敵のツリーからは「追いかける相手」として見える。
+| 性格 | FindTarget の設定 |
+|---|---|
+| 突撃 | 自分にいちばん近い敵 |
+| 遊撃 | 駒にいちばん近い敵（nearest_to_anchor） |
+| 守護 | 駒から 240 以内の敵だけ（anchor_radius） |
+| 盾 | 駒にいちばん近い敵。Engage の移動が Intercept になる |
+
+旅人（`build_wanderer`）: `Defend`（駒から 200 以内の敵を払う）→ `Repair`（Check(core_needs_repair) → RepairCore）→ 持ち場へ。
+
+葉ノード（`src/ai/`）の追加分:
+
+| ノード | 役割 |
+|---|---|
+| `BTFindTarget` | 標的選び。見える範囲、基準点（駒）からの距離の制限、基準点に近い順 |
+| `BTMoveToAnchor` | 駒のそばの持ち場へ戻る |
+| `BTIntercept` | 駒と標的のあいだ、駒から一定の距離に立つ |
+| `BTKeepDistance` | 標的が近すぎれば下がる |
+| `BTRetreat` | 標的から離れる方向へ下がる |
+| `BTWander` | 駒のまわりを気ままに歩く |
+| `BTAgentCheck` | agent の bool メソッドを条件にする |
+| `BTAnnounce` | いまの行動を agent に知らせる |
+| `BTRepairCore` | 駒のそばへ行って直す |
+
+敵の `BTFindNearestPlayer` は、`taunting` が true の相手（盾の獣）を実際より近いとみなす。
 
 ## 敵本体（agent）との契約
 

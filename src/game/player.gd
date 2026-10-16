@@ -1,14 +1,16 @@
 class_name Player
 extends CharacterBody2D
-## ローカル協力プレイの 1 人分。プレイヤーは「かたち読み」の旅人。つば広の帽子、外套、背負い袋、ランタン付きの杖。
-## 杖で霜の獣を打ち払い、金の駒の石碑に手をかざして直す。
-## HP が 0 になると倒れ、数秒後に石碑のそばで起き上がる（協力ゲームなので全滅しにくくする）。
+## 旅人「かたち読み」。つば広の帽子、外套、背負い袋、ランタン付きの杖。
+## 戦闘は自動で進む。旅人はビヘイビアツリー（BehaviorBuilder.build_wanderer）で動き、
+## 金の駒に近づいた霜の獣を杖で払い、駒が傷んでいれば手をかざして直し、何もなければ持ち場で待つ。
+## プレイヤーの操作は記録帳に描くことだけ。player_index は記録帳のどのページを描いた人かを表す。
+## HP が 0 になると倒れ、数秒後に石碑のそばで起き上がる。
 
 signal hp_changed(hp: float, max_hp: float)
 signal downed_changed(downed: bool)
 
 @export_range(1, 2) var player_index: int = 1
-@export var speed: float = 220.0
+@export var speed: float = 150.0
 @export var max_hp: float = 100.0
 @export var attack_damage: float = 15.0
 @export var attack_range: float = 56.0
@@ -34,8 +36,10 @@ var _hit_flash := 0.0
 var _t := 0.0
 var _moving := false
 var _repairing := false
+var _repairing_hold := 0.0
 var _repair_tick := 0.0
 var _cloak: Color
+var _tree: BehaviorTree
 
 
 func _ready() -> void:
@@ -46,6 +50,12 @@ func _ready() -> void:
 	material = DoodleStyle.surface_material(0.8, 0.0)
 	GlowNode.attach(self)
 	_t = player_index * 1.7
+	_tree = BehaviorTree.new()
+	_tree.name = "BehaviorTree"
+	_tree.agent = self
+	add_child(_tree)
+	var slot := Vector2(-110.0 if player_index == 1 else 110.0, 60.0)
+	BehaviorBuilder.install(_tree, BehaviorBuilder.build_wanderer(self, slot))
 	hp_changed.emit(hp, max_hp)
 
 
@@ -54,28 +64,75 @@ func _physics_process(delta: float) -> void:
 	_attack_timer = maxf(0.0, _attack_timer - delta)
 	_slash = maxf(0.0, _slash - delta)
 	_hit_flash = maxf(0.0, _hit_flash - delta)
+	_repairing_hold = maxf(0.0, _repairing_hold - delta)
+	_repairing = _repairing_hold > 0.0
 	if downed:
+		_tree.enabled = false
 		_respawn_timer -= delta
 		if _respawn_timer <= 0.0:
 			_respawn()
 		queue_redraw()
 		return
+	_tree.enabled = true
+	_moving = velocity.length() > 5.0
+	queue_redraw()
 
-	var prefix := "p%d_" % player_index
-	var direction := Input.get_vector(prefix + "left", prefix + "right", prefix + "up", prefix + "down")
+
+# --- BT の葉ノードから呼ばれる契約 ---
+
+func move_toward_point(point: Vector2, _delta: float) -> void:
+	var direction := (point - global_position).normalized()
 	velocity = direction * speed
 	move_and_slide()
 	global_position = global_position.clamp(play_area.position, play_area.end)
-	_moving = direction != Vector2.ZERO
-	if _moving:
-		facing = direction.normalized()
+	if direction != Vector2.ZERO:
+		facing = direction
 
-	if Input.is_action_pressed(prefix + "attack") and _attack_timer <= 0.0:
-		_attack()
-	_repairing = false
-	if Input.is_action_pressed(prefix + "repair"):
-		_repair(delta)
-	queue_redraw()
+
+func stop_moving() -> void:
+	velocity = Vector2.ZERO
+
+
+func attack(target: Node) -> bool:
+	if _attack_timer > 0.0:
+		return false
+	_attack_timer = attack_interval
+	var target_2d := target as Node2D
+	if target_2d != null:
+		var to_target := target_2d.global_position - global_position
+		if to_target.length() > 1.0:
+			facing = to_target.normalized()
+	_slash = 0.18
+	_slash_dir = facing
+	if target.has_method("take_damage"):
+		target.take_damage(attack_damage, self)
+		if target_2d != null:
+			Fx.burst(target_2d.global_position + Vector2(0.0, -18.0), DoodleStyle.FROST, 0.7, 5)
+		Sound.play("hit_light", -3.0)
+		Fx.shake(1.5)
+	return true
+
+
+func core_needs_repair() -> bool:
+	var core := get_tree().get_first_node_in_group(&"core") as Core
+	return core != null and not core.is_destroyed() and core.hp < core.max_hp - 1.0
+
+
+func repair_core(delta: float) -> void:
+	var core := get_tree().get_first_node_in_group(&"core") as Core
+	if core == null:
+		return
+	var to_core := core.global_position - global_position
+	if to_core.length() > 1.0:
+		facing = to_core.normalized()
+	_repairing_hold = 0.15
+	core.repair(repair_per_second * delta)
+	_repair_tick -= delta
+	if _repair_tick <= 0.0:
+		_repair_tick = 0.5
+		var spot := core.global_position + Vector2(randf_range(-30.0, 30.0), randf_range(-100.0, -20.0))
+		Fx.pop_text(spot, "+", DoodleStyle.GOLD_LIGHT, 24)
+		Sound.play("repair")
 
 
 func is_targetable() -> bool:
@@ -93,38 +150,6 @@ func take_damage(amount: float, _source: Node = null) -> void:
 		_down()
 
 
-func _attack() -> void:
-	_attack_timer = attack_interval
-	_slash = 0.18
-	_slash_dir = facing
-	var hit_any := false
-	for node in get_tree().get_nodes_in_group(&"enemies"):
-		var enemy := node as Node2D
-		if enemy == null or not enemy.has_method("take_damage"):
-			continue
-		if global_position.distance_to(enemy.global_position) <= attack_range:
-			enemy.take_damage(attack_damage, self)
-			Fx.burst(enemy.global_position + Vector2(0.0, -18.0), DoodleStyle.FROST, 0.7, 5)
-			hit_any = true
-	if hit_any:
-		Fx.shake(2.0)
-
-
-func _repair(delta: float) -> void:
-	var core := get_tree().get_first_node_in_group(&"core") as Core
-	if core == null:
-		return
-	if global_position.distance_to(core.global_position) > repair_range or core.hp >= core.max_hp:
-		return
-	_repairing = true
-	core.repair(repair_per_second * delta)
-	_repair_tick -= delta
-	if _repair_tick <= 0.0:
-		_repair_tick = 0.4
-		var spot := core.global_position + Vector2(randf_range(-30.0, 30.0), randf_range(-100.0, -20.0))
-		Fx.pop_text(spot, "+", DoodleStyle.GOLD_LIGHT, 24)
-
-
 func _down() -> void:
 	downed = true
 	_respawn_timer = respawn_seconds
@@ -133,6 +158,7 @@ func _down() -> void:
 	set_collision_mask_value(2, false)
 	Fx.burst(global_position + Vector2(0.0, -30.0), DoodleStyle.FROST, 1.2, 12)
 	Fx.pop_text(global_position + Vector2(0.0, -80.0), "凍えた…", DoodleStyle.FROST, 22)
+	Sound.play("seed_hit", -4.0)
 	Fx.shake(6.0)
 	downed_changed.emit(true)
 

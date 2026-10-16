@@ -1,9 +1,9 @@
 extends CanvasLayer
 ## 戦闘画面の情報表示。暗い板に金の縁、明朝体。ピクセル化の後処理より上にあるので文字はくっきり読める。
+## 戦闘は自動なので、操作の説明ではなく「いま何が起きているか」を見せる。
 ## ゲームオーバー中も動くよう process_mode は Always。
 
 const RESTART_SCENE := "res://src/draw/draw_phase.tscn"
-const KANJI_NUMBERS := ["〇", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"]
 
 var _core_hp := 0.0
 var _core_max := 1.0
@@ -24,6 +24,8 @@ var _fade := 1.0
 var _last_count := -1
 var _count_pop := 0.0
 var _canvas: HudCanvas
+var _cleared := 0.0
+var _cleared_wave := 0
 
 
 class HudCanvas:
@@ -46,13 +48,12 @@ func _process(delta: float) -> void:
 	_banner = maxf(0.0, _banner - delta)
 	_fade = maxf(0.0, _fade - delta * 1.6)
 	_count_pop = maxf(0.0, _count_pop - delta * 3.0)
+	_cleared = maxf(0.0, _cleared - delta)
 	_canvas.queue_redraw()
 
 
 static func wave_name(n: int) -> String:
-	if n <= 10:
-		return "第%sの波" % KANJI_NUMBERS[n]
-	return "第%dの波" % n
+	return DoodleStyle.wave_name(n)
 
 
 func set_core_hp(hp: float, max_hp: float) -> void:
@@ -77,6 +78,8 @@ func set_countdown(seconds: float) -> void:
 	if whole != _last_count:
 		_last_count = whole
 		_count_pop = 1.0
+		if seconds > 0.0 and whole <= 3:
+			Sound.play("tick", 0.0, 0.0)
 
 
 func set_player_status(index: int, hp: float, max_hp: float, downed: bool) -> void:
@@ -90,6 +93,11 @@ func set_beast_status(weapon: String, hp: float, max_hp: float) -> void:
 	_beast_max = max_hp
 
 
+func show_wave_cleared(wave: int) -> void:
+	_cleared = 3.2
+	_cleared_wave = wave
+
+
 func show_game_over(wave: int) -> void:
 	_game_over = true
 	_game_over_wave = wave
@@ -98,6 +106,10 @@ func show_game_over(wave: int) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _game_over and event.is_action_pressed("restart"):
 		get_tree().paused = false
+		var session := get_node_or_null("/root/GameSession")
+		if session != null:
+			session.reset_run()
+		Sound.music("bgm_ambient", 1.5)
 		get_tree().change_scene_to_file(RESTART_SCENE)
 
 
@@ -108,8 +120,10 @@ func draw_hud(c: Node2D) -> void:
 	_draw_countdown(c)
 	_draw_banner(c)
 	DoodleStyle.draw_text(c, DoodleStyle.UI_FONT, Vector2(0.0, 708.0),
-		"移動  WASD・矢印・スティック　　杖で打つ  J・.・A　　駒を直す  K・/・X（石碑のそばで）", 14,
+		"戦いは自動で進む。獣は描いたかたちのとおりに動き、旅人は駒を直して近くの霜を払う。", 14,
 		Color(DoodleStyle.CREAM, 0.7), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 4)
+	if _cleared > 0.0 and not _game_over:
+		_draw_cleared(c)
 	if _game_over:
 		_draw_game_over(c)
 	if _fade > 0.0:
@@ -163,7 +177,7 @@ func _draw_team_cards(c: Node2D) -> void:
 		if _beast_max <= 0.0:
 			DoodleStyle.draw_text(c, DoodleStyle.UI_FONT, Vector2(1140.0, y + 23.0), "くずれてしまった", 13, DoodleStyle.HP_LOW)
 		else:
-			DoodleStyle.draw_text(c, DoodleStyle.UI_FONT, Vector2(1140.0, y + 23.0), "ぶき：%s" % _beast_weapon, 13, DoodleStyle.CREAM)
+			DoodleStyle.draw_text(c, DoodleStyle.UI_FONT, Vector2(1140.0, y + 23.0), _beast_weapon, 13, DoodleStyle.CREAM)
 			DoodleStyle.draw_bar(c, Rect2(1014.0, y + 32.0, 238.0, 10.0), _beast_hp / _beast_max)
 
 
@@ -192,10 +206,23 @@ func _draw_banner(c: Node2D) -> void:
 	DoodleStyle.draw_text(c, DoodleStyle.UI_FONT, Vector2(0.0, center.y + 42.0), "霜の獣が、かたちを凍らせにきた", 18, Color(DoodleStyle.FROST, alpha), HORIZONTAL_ALIGNMENT_CENTER, 1280.0)
 
 
+func _draw_cleared(c: Node2D) -> void:
+	var k := 3.2 - _cleared
+	var alpha := clampf(k / 0.4, 0.0, 1.0)
+	var center := Vector2(640.0, 330.0)
+	c.draw_rect(Rect2(0.0, center.y - 70.0, 1280.0, 140.0), Color(DoodleStyle.NIGHT, 0.78 * alpha))
+	c.draw_line(Vector2(190.0, center.y - 60.0), Vector2(1090.0, center.y - 60.0), Color(DoodleStyle.GOLD, alpha), 1.5)
+	c.draw_line(Vector2(190.0, center.y + 60.0), Vector2(1090.0, center.y + 60.0), Color(DoodleStyle.GOLD, alpha), 1.5)
+	DoodleStyle.draw_text(c, DoodleStyle.HAND_FONT, Vector2(0.0, center.y + 4.0), "%sを守った" % wave_name(_cleared_wave), 50, Color(DoodleStyle.GOLD_LIGHT, alpha), HORIZONTAL_ALIGNMENT_CENTER, 1280.0)
+	DoodleStyle.draw_text(c, DoodleStyle.UI_FONT, Vector2(0.0, center.y + 42.0), "インクが増えた。記録帳に戻って、かたちを描き直そう", 18, Color(DoodleStyle.CREAM, alpha), HORIZONTAL_ALIGNMENT_CENTER, 1280.0)
+	if k > 2.6:
+		c.draw_rect(Rect2(0.0, 0.0, 1280.0, 720.0), Color(DoodleStyle.NIGHT, (k - 2.6) / 0.6))
+
+
 func _draw_game_over(c: Node2D) -> void:
 	c.draw_rect(Rect2(0.0, 0.0, 1280.0, 720.0), Color(DoodleStyle.NIGHT, 0.72))
 	DoodleStyle.draw_d20(c, Vector2(640.0, 230.0), 34.0, DoodleStyle.FROST_DEEP, DoodleStyle.NIGHT)
 	DoodleStyle.draw_text(c, DoodleStyle.HAND_FONT, Vector2(0.0, 340.0), "金の駒が、凍りついた", 56, DoodleStyle.CREAM, HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 8)
 	DoodleStyle.draw_text(c, DoodleStyle.HAND_FONT, Vector2(0.0, 400.0), "%sまで、かたちを守った" % wave_name(_game_over_wave), 26, DoodleStyle.GOLD_LIGHT, HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 6)
 	var blink := 0.55 + 0.45 * sin(_t * 3.0)
-	DoodleStyle.draw_text(c, DoodleStyle.UI_FONT, Vector2(0.0, 470.0), "R・Start で、もういちど記録帳に描く", 20, Color(DoodleStyle.CREAM, blink), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 4)
+	DoodleStyle.draw_text(c, DoodleStyle.UI_FONT, Vector2(0.0, 470.0), "R・Start で、はじめから記録帳に描く", 20, Color(DoodleStyle.CREAM, blink), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 4)

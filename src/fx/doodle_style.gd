@@ -69,6 +69,15 @@ const ACCENT_RED := Color("c0533f")
 
 static var _glow_material: CanvasItemMaterial
 
+const KANJI_NUMBERS := ["〇", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"]
+
+
+## 「第三の波」のような呼び名。
+static func wave_name(n: int) -> String:
+	if n >= 0 and n <= 10:
+		return "第%sの波" % KANJI_NUMBERS[n]
+	return "第%dの波" % n
+
 
 static func surface_material(grain: float = 1.0, moss: float = 0.0, boil: float = 0.0) -> ShaderMaterial:
 	var material := ShaderMaterial.new()

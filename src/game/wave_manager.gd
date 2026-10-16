@@ -2,6 +2,7 @@ class_name WaveManager
 extends Node
 ## CPU 側の波（ウェーブ）を管理する。
 ## カウントダウン → 画面端から敵を順に出す → 全滅を待つ → 次の波、を繰り返すエンドレス構成。
+## auto_continue が false なら、波を守ったところで止まり、wave_cleared を受けた側が次をどうするか決める（記録帳へ戻る）。
 
 signal wave_started(wave: int)
 signal wave_cleared(wave: int)
@@ -18,6 +19,7 @@ enum Phase { IDLE, COUNTDOWN, SPAWNING, FIGHTING }
 @export var spawn_interval: float = 0.5
 ## 0 なら毎回違う配置。固定すると再現テストがしやすい。
 @export var random_seed: int = 0
+@export var auto_continue: bool = true
 
 var wave := 0
 var phase := Phase.IDLE
@@ -48,8 +50,9 @@ static func hp_multiplier_for_wave(n: int) -> float:
 	return 1.0 + 0.15 * (n - 1)
 
 
-func start() -> void:
-	wave = 0
+## 波 first_wave から始める（記録帳での描き直しをはさんで、続きの波から再開できる）。
+func start(first_wave: int = 1) -> void:
+	wave = maxi(0, first_wave - 1)
 	phase = Phase.COUNTDOWN
 	_countdown = first_wave_delay
 	countdown_changed.emit(_countdown)
@@ -75,10 +78,13 @@ func _process(delta: float) -> void:
 					phase = Phase.FIGHTING
 		Phase.FIGHTING:
 			if alive <= 0:
+				if auto_continue:
+					phase = Phase.COUNTDOWN
+					_countdown = time_between_waves
+					countdown_changed.emit(_countdown)
+				else:
+					phase = Phase.IDLE
 				wave_cleared.emit(wave)
-				phase = Phase.COUNTDOWN
-				_countdown = time_between_waves
-				countdown_changed.emit(_countdown)
 
 
 func _begin_wave() -> void:

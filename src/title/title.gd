@@ -4,10 +4,10 @@ extends Node2D
 
 const NEXT_SCENE := "res://src/draw/draw_phase.tscn"
 const BEAST_SCENE := preload("res://src/game/beast.tscn")
-## 仮の題字。設定シート「はかり野 — よみがえりの大地」から取っている。製品名が決まったらここを変える。
+## 題字。設定シート「はかり野 — よみがえりの大地」から取った製品名。
 const TITLE := "はかり野"
 const SUBTITLE := "よみがえりの大地"
-const TAGLINE := "描いたかたちが、獣になってよみがえる"
+const TAGLINE := "描いたかたちが獣になってよみがえり、そのかたちのとおりに戦う"
 
 var _t := 0.0
 var _leaving := false
@@ -20,6 +20,7 @@ var _mascot: Beast
 
 func _ready() -> void:
 	Engine.time_scale = 1.0
+	Sound.music("bgm_ambient", 2.5)
 	_text.set("title_screen", self)
 	_foreground.set("title_screen", self)
 	_mascot = BEAST_SCENE.instantiate() as Beast
@@ -56,6 +57,10 @@ func start() -> void:
 	if _leaving:
 		return
 	_leaving = true
+	Sound.play("ui", 0.0, 0.0)
+	var session := get_node_or_null("/root/GameSession")
+	if session != null:
+		session.reset_run()
 	await get_tree().create_timer(0.4).timeout
 	get_tree().change_scene_to_file(NEXT_SCENE)
 

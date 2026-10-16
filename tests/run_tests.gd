@@ -2,6 +2,8 @@ extends SceneTree
 ## ヘッドレスのテスト実行器。
 ##   godot --headless --path . -s res://tests/run_tests.gd
 ## 失敗があれば終了コード 1。
+## テスト関数の途中で起きたスクリプトエラーはここから見えない（関数が止まるだけ）。
+## CI では出力の SCRIPT ERROR も失敗として扱う。
 
 const TEST_SCRIPTS: Array[String] = [
 	"res://tests/test_blackboard.gd",
@@ -12,6 +14,7 @@ const TEST_SCRIPTS: Array[String] = [
 	"res://tests/test_wave_manager.gd",
 	"res://tests/test_shape_analyzer.gd",
 	"res://tests/test_beast.gd",
+	"res://tests/test_behavior.gd",
 ]
 
 

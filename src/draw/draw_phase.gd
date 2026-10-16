@@ -1,7 +1,8 @@
 extends Node2D
 ## 描画フェーズ。机の上に開いた記録帳。左のページに「からだ」、右のページに「ぶき」を同時に描き、
-## 時間切れか両者の完成で合体する。描いている最中に、読み取ったかたち（ステータスと武器の判定）を札に表示する。
-## 残り時間は、燃えて短くなるろうそくで見せる。
+## 時間切れか両者の完成で合体する。描いている最中に、読み取ったかたちを札に表示する:
+## 性格（戦い方）と目の数（見える範囲）、ステータス、武器とその特別な動き。戦闘は自動なので、ここで描く絵が作戦になる。
+## 波を守るたびにここへ戻り、増えたインクで描き直す（前の絵が残っている）。残り時間は燃えて短くなるろうそく。
 
 const MAIN_SCENE := "res://src/game/main.tscn"
 
@@ -23,6 +24,9 @@ var _fade_in := 1.0
 var _fade_out := 0.0
 var _overlay: Overlay
 var _glow: GlowNode
+var _redraw := false
+var _wave := 1
+var _last_tick := -1
 
 
 class Overlay:
@@ -35,6 +39,14 @@ class Overlay:
 
 func _ready() -> void:
 	Engine.time_scale = 1.0
+	Sound.music("bgm_ambient", 1.5)
+	var session := get_node_or_null("/root/GameSession")
+	if session != null:
+		time_limit = session.draw_seconds()
+		_redraw = session.is_redraw()
+		_wave = session.next_wave
+		body_panel.ink_budget = session.ink_budget
+		weapon_panel.ink_budget = session.ink_budget
 	remaining = time_limit
 	_glow = GlowNode.attach(self)
 	_glow.z_index = 40
@@ -46,7 +58,6 @@ func _ready() -> void:
 	weapon_panel.changed.connect(_refresh_weapon)
 	body_panel.done_changed.connect(_on_done_changed)
 	weapon_panel.done_changed.connect(_on_done_changed)
-	var session := get_node_or_null("/root/GameSession")
 	if session != null and session.has_beast():
 		body_panel.load_strokes(session.body_strokes)
 		weapon_panel.load_strokes(session.weapon_strokes)
@@ -65,6 +76,10 @@ func _process(delta: float) -> void:
 			_refresh_body()
 		if weapon_panel.drawing:
 			_refresh_weapon()
+		var whole := ceili(remaining)
+		if whole != _last_tick and whole <= 5 and whole > 0:
+			Sound.play("tick", 0.0, 0.0)
+		_last_tick = whole
 		if remaining <= 0.0:
 			merge()
 	queue_redraw()
@@ -84,6 +99,7 @@ func _refresh_weapon() -> void:
 	var kind := ShapeAnalyzer.classify_weapon(weapon_panel.strokes_with_current())
 	if kind != _weapon_kind:
 		_weapon_pop = 1.0
+		Sound.play("ui", -4.0)
 	_weapon_kind = kind
 
 
@@ -99,7 +115,10 @@ func merge() -> void:
 	var session := get_node_or_null("/root/GameSession")
 	if session != null:
 		session.store(body_panel.strokes, weapon_panel.strokes, body_panel.ink_budget)
+		session.drawings += 1
+	Sound.stop_music(2.5)
 	await get_tree().create_timer(0.4).timeout
+	Sound.play("merge", 0.0, 0.0)
 	var gild := create_tween().set_parallel(true)
 	gild.tween_property(body_panel, "gild", 1.0, 0.7)
 	gild.tween_property(weapon_panel, "gild", 1.0, 0.7)
@@ -139,20 +158,23 @@ func _flame_point() -> Vector2:
 
 
 func _draw() -> void:
-	DoodleStyle.draw_text(self, DoodleStyle.HAND_FONT, Vector2(0.0, 34.0), "記録帳に、かたちを描く", 26, DoodleStyle.CREAM, HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 6)
+	var heading := "記録帳に、かたちを描く"
+	if _redraw:
+		heading = "%sへ。かたちを描き直す（インクが増えた）" % DoodleStyle.wave_name(_wave)
+	DoodleStyle.draw_text(self, DoodleStyle.HAND_FONT, Vector2(0.0, 26.0), heading, 22, DoodleStyle.CREAM, HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 6)
 	_draw_book()
 	_draw_candle(Vector2(1218.0, 560.0))
 	DoodleStyle.draw_d20(self, Vector2(70.0, 520.0), 18.0)
 	if merging:
 		return
-	_draw_body_label(Rect2(150.0, 46.0, 470.0, 80.0))
-	_draw_weapon_label(Rect2(660.0, 46.0, 470.0, 80.0))
+	_draw_body_label(Rect2(150.0, 36.0, 470.0, 100.0))
+	_draw_weapon_label(Rect2(660.0, 36.0, 470.0, 100.0))
 
 
 func _draw_book() -> void:
 	if merging:
 		return
-	var cover := Rect2(132.0, 128.0, 1016.0, 476.0)
+	var cover := Rect2(132.0, 140.0, 1016.0, 464.0)
 	draw_rect(Rect2(cover.position + Vector2(8.0, 12.0), cover.size), Color(0, 0, 0, 0.45))
 	draw_rect(cover, Color("3a271d"))
 	draw_rect(cover.grow(-6.0), Color("4b3326"), false, 2.0)
@@ -160,8 +182,8 @@ func _draw_book() -> void:
 		draw_line(Vector2(x, cover.position.y + 10.0), Vector2(x + 6, cover.position.y + 10.0), Color("8a6a48"), 1.0)
 		draw_line(Vector2(x, cover.end.y - 10.0), Vector2(x + 6, cover.end.y - 10.0), Color("8a6a48"), 1.0)
 	# 綴じ目の影
-	draw_rect(Rect2(620.0, 140.0, 40.0, 440.0), Color(0, 0, 0, 0.35))
-	draw_line(Vector2(640.0, 140.0), Vector2(640.0, 580.0), Color(0, 0, 0, 0.5), 3.0)
+	draw_rect(Rect2(620.0, 150.0, 40.0, 440.0), Color(0, 0, 0, 0.35))
+	draw_line(Vector2(640.0, 150.0), Vector2(640.0, 590.0), Color(0, 0, 0, 0.5), 3.0)
 
 
 func _label(rect: Rect2, tilt: float) -> void:
@@ -174,9 +196,12 @@ func _label(rect: Rect2, tilt: float) -> void:
 
 
 func _draw_body_label(rect: Rect2) -> void:
-	_label(rect, -0.008)
-	var trait_text: String = _body_info.get("trait", "")
-	DoodleStyle.draw_text(self, DoodleStyle.HAND_FONT, rect.position + Vector2(16.0, 28.0), trait_text, 20, DoodleStyle.SEPIA)
+	_label(rect, -0.006)
+	var nature: String = _body_info.get("nature", "none")
+	var origin := rect.position + Vector2(16.0, 0.0)
+	DoodleStyle.draw_text(self, DoodleStyle.HAND_FONT, origin + Vector2(0.0, 28.0), ShapeAnalyzer.nature_label(nature), 22, DoodleStyle.BLOOD)
+	DoodleStyle.draw_text(self, DoodleStyle.UI_FONT, origin + Vector2(78.0, 27.0), ShapeAnalyzer.nature_description(nature), 13, DoodleStyle.SEPIA)
+	DoodleStyle.draw_text(self, DoodleStyle.UI_FONT, origin + Vector2(0.0, 50.0), ShapeAnalyzer.eyes_text(int(_body_info.get("eyes", 0))), 13, Color(DoodleStyle.SEPIA, 0.85))
 	var stats := [
 		["体力", _body_info.get("hp", 0.0), 440.0, DoodleStyle.HP_GOOD],
 		["力", _body_info.get("attack", 0.0), 58.0, DoodleStyle.HP_LOW],
@@ -187,19 +212,22 @@ func _draw_body_label(rect: Rect2) -> void:
 		var stat: Array = stats[i]
 		var column := float(i % 2)
 		var row := float(i / 2)
-		var origin := rect.position + Vector2(16.0 + column * 226.0, 52.0 + row * 20.0)
-		DoodleStyle.draw_text(self, DoodleStyle.UI_FONT, origin, stat[0], 13, DoodleStyle.SEPIA)
-		DoodleStyle.draw_bar(self, Rect2(origin + Vector2(44.0, -10.0), Vector2(160.0, 10.0)), clampf(stat[1] / stat[2], 0.0, 1.0), stat[3])
+		var at := rect.position + Vector2(16.0 + column * 226.0, 72.0 + row * 20.0)
+		DoodleStyle.draw_text(self, DoodleStyle.UI_FONT, at, stat[0], 13, DoodleStyle.SEPIA)
+		DoodleStyle.draw_bar(self, Rect2(at + Vector2(44.0, -10.0), Vector2(160.0, 10.0)), clampf(stat[1] / stat[2], 0.0, 1.0), stat[3])
 
 
 func _draw_weapon_label(rect: Rect2) -> void:
-	_label(rect, 0.01)
+	_label(rect, 0.008)
 	var label := ShapeAnalyzer.weapon_label(_weapon_kind)
-	var hint: String = ShapeAnalyzer.weapon_profile(_weapon_kind)["hint"]
+	var profile := ShapeAnalyzer.weapon_profile(_weapon_kind)
 	DoodleStyle.draw_text(self, DoodleStyle.UI_FONT, rect.position + Vector2(16.0, 30.0), "読めたかたち", 14, DoodleStyle.SEPIA)
-	var size := int(32.0 * (1.0 + 0.4 * _weapon_pop))
-	DoodleStyle.draw_text(self, DoodleStyle.HAND_FONT, rect.position + Vector2(120.0, 40.0 + _weapon_pop * 5.0), label + "？", size, DoodleStyle.BLOOD)
-	DoodleStyle.draw_text(self, DoodleStyle.UI_FONT, rect.position + Vector2(16.0, 68.0), hint, 14, Color(DoodleStyle.SEPIA, 0.85))
+	var size := int(30.0 * (1.0 + 0.4 * _weapon_pop))
+	DoodleStyle.draw_text(self, DoodleStyle.HAND_FONT, rect.position + Vector2(120.0, 38.0 + _weapon_pop * 5.0), label + "？", size, DoodleStyle.BLOOD)
+	DoodleStyle.draw_text(self, DoodleStyle.UI_FONT, rect.position + Vector2(16.0, 64.0), profile["hint"], 13, Color(DoodleStyle.SEPIA, 0.85))
+	var behavior: String = profile.get("behavior", "")
+	if behavior != "":
+		DoodleStyle.draw_text(self, DoodleStyle.UI_FONT, rect.position + Vector2(16.0, 86.0), "動き：" + behavior, 13, DoodleStyle.BLOOD)
 
 
 ## 残り時間のろうそく。燃えて短くなり、残り 10 秒で炎が揺れる。
@@ -223,7 +251,7 @@ func _draw_candle(base: Vector2) -> void:
 func draw_overlay(c: Node2D) -> void:
 	if not merging:
 		DoodleStyle.draw_text(c, DoodleStyle.UI_FONT, Vector2(0.0, 708.0),
-			"スティック・WASD・矢印 で動かす　A・J・. で描く　X・K・/ で一つ消す　Y・L・Enter で封をする　旅人1はマウスでも描ける",
+			"スティック・WASD・矢印 で動かす　A・J・. で描く　X・K・/ で一つ消す　Y・L・Enter で封をする　旅人1はマウスでも描ける　戦いは自動",
 			14, Color(DoodleStyle.CREAM, 0.75), HORIZONTAL_ALIGNMENT_CENTER, 1280.0, 4)
 	if _flash > 0.0:
 		c.draw_rect(Rect2(0.0, 0.0, 1280.0, 720.0), Color(DoodleStyle.GOLD_LIGHT.lerp(Color.WHITE, 0.5), _flash))

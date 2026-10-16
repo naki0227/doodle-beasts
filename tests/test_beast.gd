@@ -37,8 +37,8 @@ func test_reach_grows_with_body_and_weapon() -> void:
 	var beast := (load("res://src/game/beast.tscn") as PackedScene).instantiate() as Beast
 	add_to_scene(beast)
 	beast.build(_body(), _weapon(), 3000.0)
-	var in_range := beast.get_node("BehaviorTree/Root/HuntEnemy/EngageOrApproach/Engage/IsTargetInRange") as BTIsTargetInRange
-	var move := beast.get_node("BehaviorTree/Root/HuntEnemy/EngageOrApproach/MoveToTarget") as BTMoveToTarget
+	var in_range := beast.get_node("BehaviorTree/Root/Hunt/Engage/Strike/IsTargetInRange") as BTIsTargetInRange
+	var move := beast.get_node("BehaviorTree/Root/Hunt/Engage/MoveToTarget") as BTMoveToTarget
 	assert_true(in_range.range > beast.target_size * 0.5, "体の半径より遠くまで届く")
 	assert_true(move.stop_distance < in_range.range, "止まる位置は届く範囲の内側")
 

@@ -18,7 +18,7 @@ offset_bottom = 720.0
 mouse_filter = 2
 
 [node name="BodyPanel" type="Node2D" parent="."]
-position = Vector2(150, 140)
+position = Vector2(150, 150)
 script = ExtResource("2_panel")
 player_index = 1
 title = "からだ"
@@ -27,7 +27,7 @@ accent = Color(0.435294, 0.623529, 0.847059, 1)
 use_mouse = true
 
 [node name="WeaponPanel" type="Node2D" parent="."]
-position = Vector2(660, 140)
+position = Vector2(660, 150)
 script = ExtResource("2_panel")
 player_index = 2
 title = "ぶき"

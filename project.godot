@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="Doodle Beasts"
+config/name="はかり野"
 config/description="記録帳に描いたかたちが獣としてよみがえり、霜の獣と戦う協力ゲーム"
 run/main_scene="res://src/title/title.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
@@ -19,6 +19,7 @@ config/features=PackedStringArray("4.6", "GL Compatibility")
 
 InputSetup="*res://src/game/input_setup.gd"
 GameSession="*res://src/game/game_session.gd"
+SoundBus="*res://src/fx/sound_bus.gd"
 
 [debug]
 

@@ -33,6 +33,7 @@ func _process(delta: float) -> bool:
 			root.add_child(session)
 		session.store(_sample_body(), _sample_weapon(), 3000.0)
 		_main = (load(MAIN_SCENE) as PackedScene).instantiate()
+		_main.set("redraw_between_waves", false)
 		root.add_child(_main)
 		var allies: Node = _main.get_node("Allies")
 		if allies.get_child_count() > 0:
